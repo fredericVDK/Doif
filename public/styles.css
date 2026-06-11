@@ -9,6 +9,8 @@
   --pigeon-wing: #51585f;
   --pigeon-neck: #41776d;
   --pigeon-feet: #cf6b5d;
+  --photo-height: clamp(390px, 58vh, 560px);
+  --intro-height: 220px;
 }
 
 * {
@@ -33,21 +35,52 @@ body {
   position: relative;
   min-height: 100vh;
   background:
-    linear-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px),
-    linear-gradient(180deg, #b7bcb3 0%, #8c928b 100%);
-  background-size: 68px 68px, 68px 68px, auto;
+    linear-gradient(rgba(238, 241, 232, 0.42), rgba(134, 144, 132, 0.3)),
+    url("assets/pavement-floor.png") center top / cover;
   cursor: crosshair;
+}
+
+.intro {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  gap: 10px;
+  min-height: var(--intro-height);
+  padding: 34px clamp(20px, 7vw, 120px) 28px;
+  place-content: center;
+  text-align: center;
+  background:
+    linear-gradient(rgba(249, 250, 244, 0.88), rgba(231, 235, 223, 0.82)),
+    url("assets/pavement-floor.png") center 35% / cover;
+  border-bottom: 1px solid rgba(38, 48, 45, 0.14);
+}
+
+.intro h1 {
+  margin: 0;
+  color: #20302d;
+  font-size: clamp(30px, 4vw, 58px);
+  font-weight: 800;
+  line-height: 0.98;
+}
+
+.intro p {
+  max-width: 780px;
+  margin: 0 auto;
+  color: rgba(32, 48, 45, 0.82);
+  font-size: clamp(16px, 1.45vw, 21px);
+  line-height: 1.45;
 }
 
 .photo-strip {
   position: relative;
   z-index: 2;
   width: 100%;
-  height: clamp(180px, 32vh, 340px);
+  height: var(--photo-height);
   overflow: hidden;
   border-bottom: 5px solid rgba(38, 48, 45, 0.26);
-  background: var(--sky);
+  background:
+    linear-gradient(rgba(238, 241, 232, 0.18), rgba(191, 198, 187, 0.2)),
+    url("assets/pavement-floor.png") center center / cover;
   box-shadow: 0 12px 34px rgba(38, 48, 45, 0.22);
 }
 
@@ -56,7 +89,7 @@ body {
   height: 100%;
   display: block;
   object-fit: cover;
-  object-position: center;
+  object-position: center 42%;
 }
 
 .photo-strip::after {
@@ -76,7 +109,7 @@ body {
 .hint {
   position: absolute;
   left: 50%;
-  top: calc(clamp(180px, 32vh, 340px) + 28px);
+  top: calc(var(--intro-height) + var(--photo-height) + 28px);
   z-index: 1;
   margin: 0;
   padding: 8px 12px;
@@ -213,6 +246,24 @@ body.has-fed .hint {
 }
 
 @media (max-width: 640px) {
+  :root {
+    --photo-height: clamp(260px, 42vh, 430px);
+    --intro-height: 240px;
+  }
+
+  .intro {
+    padding: 28px 18px 24px;
+  }
+
+  .intro h1 {
+    font-size: 34px;
+  }
+
+  .intro p {
+    font-size: 15px;
+    line-height: 1.42;
+  }
+
   .tiny-pigeon {
     width: 44px;
     height: 32px;
