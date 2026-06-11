@@ -51,9 +51,19 @@ function getStaticFilePath(pathname) {
   return path.join(PUBLIC_DIR, normalizedPath);
 }
 
-function handleRequest(request, response) {
+function getRequestPath(request) {
   const url = new URL(request.url, `http://${request.headers.host}`);
-  const filePath = getStaticFilePath(url.pathname);
+
+  if (url.searchParams.has("path")) {
+    const routePath = url.searchParams.get("path");
+    return routePath ? `/${routePath}` : "/";
+  }
+
+  return url.pathname;
+}
+
+function handleRequest(request, response) {
+  const filePath = getStaticFilePath(getRequestPath(request));
 
   if (!filePath) {
     response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
