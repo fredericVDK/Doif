@@ -1,0 +1,14 @@
+{
+  "name": "pigeon-crumbs",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A tiny pigeon breadcrumb website served with Node.js.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

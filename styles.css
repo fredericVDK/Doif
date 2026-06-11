@@ -1,0 +1,220 @@
+:root {
+  color-scheme: light;
+  --sky: #dce9ee;
+  --pavement: #9da39b;
+  --pavement-dark: #727870;
+  --crumb: #d9aa59;
+  --crumb-edge: #9b6b28;
+  --pigeon-body: #7c8386;
+  --pigeon-wing: #51585f;
+  --pigeon-neck: #41776d;
+  --pigeon-feet: #cf6b5d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: var(--pavement);
+  color: #26302d;
+  font-family: Arial, Helvetica, sans-serif;
+  user-select: none;
+}
+
+.stage {
+  position: relative;
+  min-height: 100vh;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(180deg, #b7bcb3 0%, #8c928b 100%);
+  background-size: 68px 68px, 68px 68px, auto;
+  cursor: crosshair;
+}
+
+.photo-strip {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: clamp(180px, 32vh, 340px);
+  overflow: hidden;
+  border-bottom: 5px solid rgba(38, 48, 45, 0.26);
+  background: var(--sky);
+  box-shadow: 0 12px 34px rgba(38, 48, 45, 0.22);
+}
+
+.photo-strip img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center;
+}
+
+.photo-strip::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 62%, rgba(0, 0, 0, 0.18));
+  pointer-events: none;
+}
+
+.playfield {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.hint {
+  position: absolute;
+  left: 50%;
+  top: calc(clamp(180px, 32vh, 340px) + 28px);
+  z-index: 1;
+  margin: 0;
+  padding: 8px 12px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(38, 48, 45, 0.2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.52);
+  color: rgba(38, 48, 45, 0.72);
+  font-size: 14px;
+  line-height: 1;
+  pointer-events: none;
+  transition: opacity 260ms ease;
+}
+
+body.has-fed .hint {
+  opacity: 0;
+}
+
+.crumb {
+  position: absolute;
+  z-index: 4;
+  width: 14px;
+  height: 11px;
+  transform: translate(-50%, -50%) rotate(var(--spin));
+  border: 2px solid var(--crumb-edge);
+  border-radius: 44% 56% 48% 52%;
+  background:
+    radial-gradient(circle at 68% 35%, rgba(255, 238, 163, 0.9) 0 2px, transparent 3px),
+    var(--crumb);
+  box-shadow: 0 4px 0 rgba(38, 48, 45, 0.16);
+  animation: crumb-pop 180ms ease-out both;
+}
+
+.crumb.eaten {
+  animation: crumb-eaten 220ms ease-in forwards;
+}
+
+.tiny-pigeon {
+  position: absolute;
+  z-index: 5;
+  width: 52px;
+  height: 38px;
+  transform: translate(-50%, -50%) scaleX(var(--face, 1));
+  transform-origin: center;
+  transition:
+    left 760ms cubic-bezier(0.22, 0.8, 0.28, 1),
+    top 760ms cubic-bezier(0.22, 0.8, 0.28, 1),
+    opacity 280ms ease;
+  pointer-events: none;
+  animation: pigeon-bob 320ms ease-in-out infinite alternate;
+}
+
+.tiny-pigeon.leaving {
+  opacity: 0;
+}
+
+.tiny-pigeon .body {
+  position: absolute;
+  left: 8px;
+  top: 13px;
+  width: 32px;
+  height: 20px;
+  border-radius: 58% 48% 54% 46%;
+  background: var(--pigeon-body);
+  box-shadow: inset -8px -3px 0 var(--pigeon-wing);
+}
+
+.tiny-pigeon .head {
+  position: absolute;
+  left: 32px;
+  top: 7px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 70% 34%, #161b1f 0 1.7px, transparent 2px),
+    linear-gradient(135deg, var(--pigeon-neck), var(--pigeon-body) 62%);
+}
+
+.tiny-pigeon .beak {
+  position: absolute;
+  left: 45px;
+  top: 13px;
+  width: 10px;
+  height: 5px;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+  background: #d8a045;
+}
+
+.tiny-pigeon .leg {
+  position: absolute;
+  top: 31px;
+  width: 2px;
+  height: 8px;
+  background: var(--pigeon-feet);
+}
+
+.tiny-pigeon .leg.one {
+  left: 20px;
+}
+
+.tiny-pigeon .leg.two {
+  left: 31px;
+}
+
+.tiny-pigeon.eating .head {
+  animation: peck 220ms ease-in-out 4;
+}
+
+@keyframes crumb-pop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2) rotate(var(--spin));
+  }
+}
+
+@keyframes crumb-eaten {
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.08) rotate(var(--spin));
+  }
+}
+
+@keyframes pigeon-bob {
+  to {
+    margin-top: -3px;
+  }
+}
+
+@keyframes peck {
+  50% {
+    transform: translate(5px, 7px) rotate(20deg);
+  }
+}
+
+@media (max-width: 640px) {
+  .tiny-pigeon {
+    width: 44px;
+    height: 32px;
+  }
+}
