@@ -6,7 +6,7 @@ Made with Codex.
 
 ## Deploy on Vercel
 
-Import this folder as a Vercel project. The `api/index.js` function serves the site through Node.js, and `vercel.json` sends all routes to it.
+Import this folder as a Vercel project. Vercel will serve the site from the `public/` folder, so no custom build command is needed.
 
 ## Run locally
 
@@ -14,4 +14,4 @@ Import this folder as a Vercel project. The `api/index.js` function serves the s
 npm start
 ```
 
-Then open `http://localhost:3000`.
+Then open `http://localhost:3000`. The local Node.js server serves the same `public/` folder.

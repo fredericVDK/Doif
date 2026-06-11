@@ -3,11 +3,7 @@ const fs = require("fs");
 const path = require("path");
 
 const PORT = process.env.PORT || 3000;
-const publicDirCandidates = [
-  __dirname,
-  process.cwd(),
-  path.join(__dirname, "..")
-];
+const PUBLIC_DIR = path.join(__dirname, "public");
 const allowedRootFiles = new Set(["index.html", "styles.css", "script.js"]);
 
 const mimeTypes = {
@@ -52,32 +48,20 @@ function getStaticFilePath(pathname) {
     return null;
   }
 
-  for (const publicDir of publicDirCandidates) {
-    const filePath = path.join(publicDir, normalizedPath);
-    const safePath = path.resolve(filePath);
-    const safePublicDir = path.resolve(publicDir);
+  const filePath = path.join(PUBLIC_DIR, normalizedPath);
+  const safePath = path.resolve(filePath);
+  const safePublicDir = path.resolve(PUBLIC_DIR);
 
-    if (safePath.startsWith(safePublicDir) && fs.existsSync(safePath)) {
-      return safePath;
-    }
+  if (!safePath.startsWith(safePublicDir)) {
+    return null;
   }
 
-  return path.join(__dirname, normalizedPath);
-}
-
-function getRequestPath(request) {
-  const url = new URL(request.url, `http://${request.headers.host}`);
-
-  if (url.searchParams.has("path")) {
-    const routePath = url.searchParams.get("path");
-    return routePath ? `/${routePath}` : "/";
-  }
-
-  return url.pathname;
+  return safePath;
 }
 
 function handleRequest(request, response) {
-  const filePath = getStaticFilePath(getRequestPath(request));
+  const url = new URL(request.url, `http://${request.headers.host}`);
+  const filePath = getStaticFilePath(url.pathname);
 
   if (!filePath) {
     response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
