@@ -3,7 +3,11 @@ const fs = require("fs");
 const path = require("path");
 
 const PORT = process.env.PORT || 3000;
-const PUBLIC_DIR = __dirname;
+const publicDirCandidates = [
+  __dirname,
+  process.cwd(),
+  path.join(__dirname, "..")
+];
 const allowedRootFiles = new Set(["index.html", "styles.css", "script.js"]);
 
 const mimeTypes = {
@@ -48,7 +52,17 @@ function getStaticFilePath(pathname) {
     return null;
   }
 
-  return path.join(PUBLIC_DIR, normalizedPath);
+  for (const publicDir of publicDirCandidates) {
+    const filePath = path.join(publicDir, normalizedPath);
+    const safePath = path.resolve(filePath);
+    const safePublicDir = path.resolve(publicDir);
+
+    if (safePath.startsWith(safePublicDir) && fs.existsSync(safePath)) {
+      return safePath;
+    }
+  }
+
+  return path.join(__dirname, normalizedPath);
 }
 
 function getRequestPath(request) {

@@ -1,4 +1,14 @@
 {
+  "functions": {
+    "api/index.js": {
+      "includeFiles": [
+        "index.html",
+        "styles.css",
+        "script.js",
+        "assets/**"
+      ]
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",
