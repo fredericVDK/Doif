@@ -12,7 +12,7 @@
       <nav class="dex-nav" aria-label="Site navigation">
         <a href="index.html">Feed pigeons</a>
       </nav>
-      <div>
+      <div class="header-copy">
         <p class="eyebrow">Live API bird book</p>
         <h1>PigeonDex</h1>
         <p class="lede">
@@ -24,17 +24,7 @@
     </header>
 
     <main class="dex-shell">
-      <section class="controls" aria-label="PigeonDex controls">
-        <label class="search-box">
-          <span>Search breeds</span>
-          <input id="searchInput" type="search" autocomplete="off" placeholder="Fantail, tumbler, pouter...">
-        </label>
-        <button id="fightButton" type="button" disabled>Fight</button>
-        <button id="randomButton" type="button">Random pigeon</button>
-        <button id="favoritesButton" type="button" aria-pressed="false">Favorites</button>
-      </section>
-
-      <section class="daily-panel" aria-label="Daily pigeon">
+      <aside class="daily-panel side-panel" aria-label="Daily pigeon">
         <div>
           <p class="section-kicker">Daily Pigeon</p>
           <h2>Today's pigeon</h2>
@@ -47,17 +37,38 @@
           <h3>Previous daily pigeons</h3>
           <ol id="dailyHistory" class="history-list"></ol>
         </div>
+      </aside>
+
+      <section class="main-column">
+        <section class="controls" aria-label="PigeonDex controls">
+          <label class="search-box">
+            <span>Search breeds</span>
+            <input id="searchInput" type="search" autocomplete="off" placeholder="Fantail, tumbler, pouter...">
+          </label>
+          <button id="randomButton" type="button">Random pigeon</button>
+          <button id="favoritesButton" type="button" aria-pressed="false">Favorites</button>
+        </section>
+
+        <section class="compare-panel" aria-label="Breed comparison">
+          <div>
+            <h2>Breed comparison</h2>
+            <p>Select up to two breeds from the cards to compare them here.</p>
+          </div>
+          <div id="compareGrid" class="compare-grid"></div>
+        </section>
+
+        <section class="status" id="status" role="status">Loading pigeon breeds from live APIs...</section>
+        <section class="breed-grid" id="breedGrid" aria-label="Pigeon breed results"></section>
       </section>
 
-      <section class="battle-panel" aria-label="Pigeon Battle Arena">
-        <div class="battle-head">
-          <div>
-            <p class="section-kicker">Pigeon Battle Arena</p>
-            <h2>Absolutely useless. Therefore amazing.</h2>
-            <p>Choose two pigeons with the Prepare for battle button, then press Fight at the top.</p>
-          </div>
-          <div class="battle-slots" id="battleSlots"></div>
+      <aside class="battle-panel side-panel" aria-label="Pigeon Battle Arena">
+        <div>
+          <p class="section-kicker">Pigeon Battle Arena</p>
+          <h2>Absolutely useless. Therefore amazing.</h2>
+          <p>Choose two pigeons with Prepare for battle, then press Fight.</p>
         </div>
+        <button id="fightButton" class="fight-button" type="button" disabled>Fight</button>
+        <div class="battle-slots" id="battleSlots"></div>
         <div id="battleStage" class="battle-stage">
           <p class="empty">No battle prepared yet.</p>
         </div>
@@ -65,18 +76,7 @@
           <h3>Battle history</h3>
           <ol id="battleHistory" class="history-list"></ol>
         </div>
-      </section>
-
-      <section class="compare-panel" aria-label="Breed comparison">
-        <div>
-          <h2>Breed comparison</h2>
-          <p>Select up to two breeds from the cards to compare them here.</p>
-        </div>
-        <div id="compareGrid" class="compare-grid"></div>
-      </section>
-
-      <section class="status" id="status" role="status">Loading pigeon breeds from live APIs...</section>
-      <section class="breed-grid" id="breedGrid" aria-label="Pigeon breed results"></section>
+      </aside>
     </main>
 
     <script src="pigeondex.js"></script>

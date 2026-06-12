@@ -426,6 +426,20 @@ function countMissing() {
   );
 }
 
+function hasSpecificImage(breed) {
+  return breed.image && breed.image !== FALLBACK_IMAGE;
+}
+
+function sortBreeds() {
+  breeds.sort((a, b) => {
+    const imageDifference = Number(hasSpecificImage(b)) - Number(hasSpecificImage(a));
+
+    if (imageDifference) return imageDifference;
+
+    return a.name.localeCompare(b.name);
+  });
+}
+
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -573,12 +587,14 @@ async function loadBreeds() {
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
+    sortBreeds();
 
     render();
     renderDaily();
     renderBattle();
     enrichMissingData()
       .then(() => {
+        sortBreeds();
         render();
         renderDaily();
         renderBattle();
@@ -609,7 +625,14 @@ function visibleBreeds() {
 function render() {
   const visible = visibleBreeds();
   const missing = countMissing();
-  breedGrid.innerHTML = visible.map(renderCard).join("");
+  const sortedVisible = [...visible].sort((a, b) => {
+    const imageDifference = Number(hasSpecificImage(b)) - Number(hasSpecificImage(a));
+
+    if (imageDifference) return imageDifference;
+
+    return a.name.localeCompare(b.name);
+  });
+  breedGrid.innerHTML = sortedVisible.map(renderCard).join("");
   setStatus(
     visible.length
       ? `Showing ${visible.length} of ${breeds.length} live API breeds. Extra searches tried for ${missing.fields} unavailable fields and ${missing.images} images.`
@@ -827,7 +850,6 @@ function toggleBattle(id) {
   }
 
   battleHasResult = false;
-  scrollToTop();
   render();
 }
 
@@ -875,7 +897,6 @@ function fightBattle() {
 
   isBattling = true;
   battleHasResult = false;
-  scrollToTop();
   fightButton.disabled = true;
   battleStage.classList.add("is-fighting");
   battleStage.innerHTML = `

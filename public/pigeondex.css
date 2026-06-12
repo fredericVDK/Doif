@@ -30,9 +30,16 @@ input {
 
 .dex-header {
   position: relative;
-  padding: 34px clamp(18px, 6vw, 92px) 28px;
+  padding: 24px clamp(18px, 4vw, 60px) 24px;
   border-bottom: 1px solid var(--line);
   background: rgba(250, 251, 245, 0.82);
+}
+
+.header-copy {
+  display: grid;
+  grid-template-columns: auto minmax(320px, 760px);
+  gap: 22px;
+  align-items: end;
 }
 
 .dex-nav {
@@ -81,22 +88,30 @@ button[aria-pressed="true"] {
 
 h1 {
   margin: 0;
-  font-size: clamp(42px, 8vw, 104px);
+  font-size: clamp(44px, 7vw, 96px);
   line-height: 0.92;
 }
 
 .lede {
-  max-width: 780px;
-  margin: 14px 0 0;
+  max-width: 720px;
+  margin: 0;
   color: var(--muted);
-  font-size: clamp(16px, 1.55vw, 21px);
+  font-size: clamp(15px, 1.2vw, 18px);
   line-height: 1.45;
 }
 
 .dex-shell {
-  width: min(1440px, 100%);
+  display: grid;
+  grid-template-columns: minmax(210px, 270px) minmax(0, 1fr) minmax(260px, 340px);
+  gap: 16px;
+  align-items: start;
+  width: min(1760px, 100%);
   margin: 0 auto;
-  padding: 22px clamp(14px, 3vw, 38px) 44px;
+  padding: 16px clamp(12px, 2vw, 28px) 44px;
+}
+
+.main-column {
+  min-width: 0;
 }
 
 .controls {
@@ -104,7 +119,7 @@ h1 {
   top: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto auto auto;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
   gap: 12px;
   align-items: end;
   padding: 12px 0;
@@ -162,16 +177,11 @@ h1 {
   margin-bottom: 16px;
 }
 
-.daily-panel {
-  grid-template-columns: minmax(180px, 260px) minmax(280px, 1fr) minmax(180px, 280px);
-  align-items: start;
-}
-
-.battle-head {
-  display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(280px, 520px);
-  gap: 16px;
-  align-items: start;
+.side-panel {
+  position: sticky;
+  top: 76px;
+  max-height: calc(100vh - 92px);
+  overflow: auto;
 }
 
 .section-kicker {
@@ -204,7 +214,7 @@ h1 {
 }
 
 .daily-card {
-  grid-template-columns: 180px 1fr;
+  grid-template-columns: 1fr;
   align-items: start;
 }
 
@@ -259,7 +269,7 @@ h1 {
 }
 
 .battle-slots {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .battle-slot,
@@ -276,7 +286,7 @@ h1 {
 }
 
 .battle-stage {
-  min-height: 220px;
+  min-height: 180px;
   padding: 14px;
   border: 1px dashed rgba(32, 48, 45, 0.22);
   border-radius: 8px;
@@ -286,7 +296,7 @@ h1 {
 
 .battle-matchup {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) 150px minmax(180px, 1fr);
+  grid-template-columns: 1fr;
   gap: 14px;
   align-items: center;
 }
@@ -360,6 +370,12 @@ h1 {
   margin: 0 auto;
   text-align: center;
   animation: winner-grow 520ms ease-out both;
+}
+
+.fight-button {
+  width: 100%;
+  background: var(--accent-dark);
+  color: white;
 }
 
 .winner-card::before {
@@ -576,13 +592,18 @@ h1 {
     right: 18px;
   }
 
+  .dex-shell,
+  .header-copy,
   .controls,
   .compare-panel,
-  .daily-panel,
-  .battle-head,
-  .battle-matchup,
   .compare-grid {
     grid-template-columns: 1fr;
+  }
+
+  .side-panel {
+    position: static;
+    max-height: none;
+    overflow: visible;
   }
 
   .controls {
