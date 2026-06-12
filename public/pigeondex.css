@@ -164,10 +164,22 @@ h1 {
 }
 
 .compare-item {
+  display: grid;
+  grid-template-columns: 118px 1fr;
+  gap: 10px 12px;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.56);
+}
+
+.compare-image {
+  grid-row: span 2;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #d9ddd3;
 }
 
 .compare-item h3 {
@@ -306,5 +318,9 @@ h1 {
   .compare-panel,
   .compare-grid {
     grid-template-columns: 1fr;
+  }
+
+  .compare-item {
+    grid-template-columns: 92px 1fr;
   }
 }

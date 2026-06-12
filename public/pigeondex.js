@@ -1,10 +1,13 @@
 const WIKI_API = "https://en.wikipedia.org/w/api.php";
 const WIKIDATA_API = "https://www.wikidata.org/w/api.php";
+const COMMONS_API = "https://commons.wikimedia.org/w/api.php";
 const COMMONS_FILE = "https://commons.wikimedia.org/wiki/Special:FilePath/";
+const FALLBACK_IMAGE = "assets/pigeon-hero-wide.png";
 const LIST_PAGE = "List_of_pigeon_breeds";
 const PAGE_BATCH_SIZE = 35;
 const MAX_INITIAL_BREEDS = 260;
 const favoritesKey = "pigeondex:favorites";
+const MISSING_SOURCE = "Not listed in source";
 
 const breedGrid = document.querySelector("#breedGrid");
 const statusEl = document.querySelector("#status");
@@ -134,6 +137,8 @@ async function fetchWikidataDetails(ids) {
   const details = new Map();
   const uniqueIds = [...new Set(ids.filter(Boolean))];
 
+  if (!uniqueIds.length) return details;
+
   for (const idBatch of chunks(uniqueIds, 50)) {
     const data = await fetchJson(
       apiUrl(WIKIDATA_API, {
@@ -160,6 +165,8 @@ async function fetchWikidataDetails(ids) {
 async function fetchLabels(ids) {
   const labels = new Map();
   const uniqueIds = [...new Set(ids.filter(Boolean))];
+
+  if (!uniqueIds.length) return labels;
 
   for (const idBatch of chunks(uniqueIds, 50)) {
     const data = await fetchJson(
@@ -191,40 +198,57 @@ function readCommonsFile(claims = []) {
   return claims[0]?.mainsnak?.datavalue?.value || "";
 }
 
+function inferOriginFromText(text) {
+  const patterns = [
+    /\b(?:originated|developed|created|bred|comes|came)\s+(?:in|from)\s+([A-Z][A-Za-z .'-]+?)(?:,|\.|;|\s+during|\s+in\s+the|\s+and\b)/,
+    /\b(?:from|of)\s+([A-Z][A-Za-z .'-]+?)(?:,|\.|;|\s+and\b)/
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+
+    if (match?.[1] && match[1].length < 36) {
+      return match[1].replace(/\bthe\b/gi, "").trim();
+    }
+  }
+
+  return "";
+}
+
 function inferSize(text) {
   const lower = text.toLowerCase();
 
-  if (/\b(giant|large|heavy|runt|king pigeon)\b/.test(lower)) return "Large, API-derived";
-  if (/\b(small|short-faced|pigmy|figurita|owl)\b/.test(lower)) return "Small, API-derived";
-  if (/\b(medium|homer|racer|carrier)\b/.test(lower)) return "Medium, API-derived";
-  return "Not listed in source";
+  if (/\b(giant|large|heavy|runt|king pigeon|mondain|strasser)\b/.test(lower)) return "Large";
+  if (/\b(small|short-faced|pigmy|figurita|owl|mövchen|movchen|frill)\b/.test(lower)) return "Small";
+  if (/\b(medium|homer|racer|carrier|dragoon|trumpeter|pouter|cropper)\b/.test(lower)) return "Medium";
+  return MISSING_SOURCE;
 }
 
 function inferFlight(text) {
   const lower = text.toLowerCase();
 
   if (/\b(highflyer|highflier|tippler|racing|racer|homer|flight)\b/.test(lower)) {
-    return "Strong flyer, API-derived";
+    return "Strong flyer";
   }
 
   if (/\b(tumbler|roller|performing)\b/.test(lower)) {
-    return "Acrobatic flyer, API-derived";
+    return "Acrobatic flyer";
   }
 
   if (/\b(show|fancy|pouter|cropper|fantail|king|runt)\b/.test(lower)) {
-    return "Mostly show/fancy, API-derived";
+    return "Mostly show/fancy";
   }
 
-  return "Not listed in source";
+  return MISSING_SOURCE;
 }
 
 function inferTemperament(text) {
   const lower = text.toLowerCase();
 
-  if (/\b(gentle|docile|calm|friendly|quiet)\b/.test(lower)) return "Calm, API-derived";
-  if (/\b(active|alert|energetic|performing|flying)\b/.test(lower)) return "Active, API-derived";
-  if (/\b(show|fancy)\b/.test(lower)) return "Kept for exhibition, API-derived";
-  return "Not listed in source";
+  if (/\b(gentle|docile|calm|friendly|quiet)\b/.test(lower)) return "Calm";
+  if (/\b(active|alert|energetic|performing|flying|racing|tumbler|roller)\b/.test(lower)) return "Active";
+  if (/\b(show|fancy|exhibition|ornamental)\b/.test(lower)) return "Kept for exhibition";
+  return MISSING_SOURCE;
 }
 
 function extractFact(extract) {
@@ -239,7 +263,155 @@ function extractFact(extract) {
 function imageFor(page, wdDetail) {
   if (page.thumbnail) return page.thumbnail;
   if (wdDetail?.imageName) return `${COMMONS_FILE}${encodeURIComponent(wdDetail.imageName)}?width=720`;
-  return "assets/pigeon-hero-wide.png";
+  return FALLBACK_IMAGE;
+}
+
+async function findCommonsImage(title) {
+  const queries = [
+    `${title} pigeon`,
+    `"${title}"`,
+    `${title} breed`
+  ];
+
+  for (const query of queries) {
+    const image = await findCommonsImageByQuery(title, query);
+
+    if (image) return image;
+  }
+
+  return "";
+}
+
+async function findWikipediaSearchImage(title) {
+  try {
+    const data = await fetchJson(
+      apiUrl(WIKI_API, {
+        action: "query",
+        generator: "search",
+        gsrsearch: `${title} pigeon`,
+        gsrlimit: "1",
+        prop: "pageimages",
+        piprop: "thumbnail|original",
+        pithumbsize: "720",
+        format: "json",
+        origin: "*"
+      })
+    );
+    const page = Object.values(data.query?.pages || {})[0];
+
+    return page?.thumbnail?.source || page?.original?.source || "";
+  } catch (error) {
+    console.warn(`Could not find Wikipedia search image for ${title}`, error);
+    return "";
+  }
+}
+
+async function findCommonsImageByQuery(title, query) {
+  try {
+    const data = await fetchJson(
+      apiUrl(COMMONS_API, {
+        action: "query",
+        generator: "search",
+        gsrsearch: query,
+        gsrnamespace: "6",
+        gsrlimit: "1",
+        prop: "imageinfo",
+        iiprop: "url",
+        iiurlwidth: "720",
+        format: "json",
+        origin: "*"
+      })
+    );
+    const page = Object.values(data.query?.pages || {})[0];
+
+    return page?.imageinfo?.[0]?.thumburl || page?.imageinfo?.[0]?.url || "";
+  } catch (error) {
+    console.warn(`Could not find Commons image for ${title} with ${query}`, error);
+    return "";
+  }
+}
+
+async function searchWikidataEntity(title) {
+  try {
+    const data = await fetchJson(
+      apiUrl(WIKIDATA_API, {
+        action: "wbsearchentities",
+        search: title,
+        language: "en",
+        limit: "1",
+        format: "json",
+        origin: "*"
+      })
+    );
+
+    return data.search?.[0]?.id || "";
+  } catch (error) {
+    console.warn(`Could not search Wikidata for ${title}`, error);
+    return "";
+  }
+}
+
+async function mapLimit(items, limit, worker) {
+  const results = [];
+  let nextIndex = 0;
+
+  async function runNext() {
+    const index = nextIndex;
+    nextIndex += 1;
+
+    if (index >= items.length) return;
+
+    results[index] = await worker(items[index], index);
+    await runNext();
+  }
+
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, runNext));
+  return results;
+}
+
+async function enrichMissingData() {
+  const missingOrigin = breeds.filter((breed) => breed.origin === MISSING_SOURCE);
+  const missingImages = breeds.filter((breed) => breed.image === FALLBACK_IMAGE);
+
+  if (!missingOrigin.length && !missingImages.length) return;
+
+  setStatus(`Searching public APIs for ${missingOrigin.length} missing origins and ${missingImages.length} missing images...`);
+
+  const entityMatches = await mapLimit(missingOrigin, 8, async (breed) => ({
+    breed,
+    entityId: await searchWikidataEntity(breed.name)
+  }));
+  const details = await fetchWikidataDetails(entityMatches.map((match) => match.entityId));
+  const originIds = [...details.values()].flatMap((detail) => detail.originIds);
+  const labels = await fetchLabels(originIds);
+
+  entityMatches.forEach(({ breed, entityId }) => {
+    const origin = (details.get(entityId)?.originIds || [])
+      .map((id) => labels.get(id))
+      .filter(Boolean)
+      .join(", ");
+
+    if (origin) breed.origin = origin;
+  });
+
+  await mapLimit(missingImages, 8, async (breed) => {
+    const image = await findWikipediaSearchImage(breed.name) || await findCommonsImage(breed.name);
+
+    if (image) breed.image = image;
+  });
+}
+
+function countMissing() {
+  return breeds.reduce(
+    (counts, breed) => {
+      ["origin", "size", "flight", "temperament"].forEach((key) => {
+        if (breed[key] === MISSING_SOURCE) counts.fields += 1;
+      });
+      if (breed.image === FALLBACK_IMAGE) counts.images += 1;
+      return counts;
+    },
+    { fields: 0, images: 0 }
+  );
 }
 
 async function loadBreeds() {
@@ -261,7 +433,7 @@ async function loadBreeds() {
         return {
           id: titleToId(page.title),
           name: page.title,
-          origin: origin || "Not listed in source",
+          origin: origin || inferOriginFromText(text) || MISSING_SOURCE,
           size: inferSize(text),
           flight: inferFlight(text),
           temperament: inferTemperament(text),
@@ -273,8 +445,13 @@ async function loadBreeds() {
       })
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    setStatus(`Showing ${breeds.length} breeds loaded from Wikipedia and Wikidata APIs.`);
     render();
+    enrichMissingData()
+      .then(render)
+      .catch((error) => {
+        console.warn("Some extra PigeonDex enrichment calls failed.", error);
+        render();
+      });
   } catch (error) {
     console.error(error);
     setStatus("Could not load the live pigeon APIs. Try refreshing the page.");
@@ -296,10 +473,11 @@ function visibleBreeds() {
 
 function render() {
   const visible = visibleBreeds();
+  const missing = countMissing();
   breedGrid.innerHTML = visible.map(renderCard).join("");
   setStatus(
     visible.length
-      ? `Showing ${visible.length} of ${breeds.length} live API breeds.`
+      ? `Showing ${visible.length} of ${breeds.length} live API breeds. Extra searches tried for ${missing.fields} unavailable fields and ${missing.images} images.`
       : "No breeds match that search."
   );
   renderCompare();
@@ -315,7 +493,7 @@ function renderCard(breed) {
       <div class="breed-body">
         <div class="breed-title">
           <h2>${escapeHtml(breed.name)}</h2>
-          <button class="icon-button ${isFavorite ? "is-active" : ""}" type="button" data-favorite="${escapeHtml(breed.id)}" aria-label="Favorite ${escapeHtml(breed.name)}">★</button>
+          <button class="icon-button ${isFavorite ? "is-active" : ""}" type="button" data-favorite="${escapeHtml(breed.id)}" aria-label="Favorite ${escapeHtml(breed.name)}">&#9733;</button>
         </div>
         <div class="facts">
           ${renderFact("Origin", breed.origin)}
@@ -337,9 +515,19 @@ function renderFact(label, value) {
   return `
     <div class="fact">
       <span>${escapeHtml(label)}</span>
-      <strong>${escapeHtml(value)}</strong>
+      <strong>${escapeHtml(displayValue(label, value))}</strong>
     </div>
   `;
+}
+
+function displayValue(label, value) {
+  if (value !== MISSING_SOURCE) return value;
+
+  if (label === "Origin") return "No verified origin found";
+  if (label === "Size") return "Breed standard varies";
+  if (label === "Flight") return "Varies by strain";
+  if (label === "Temperament") return "Varies by strain";
+  return "No verified result found";
 }
 
 function renderCompare() {
@@ -352,12 +540,13 @@ function renderCompare() {
 
   compareGrid.innerHTML = selected.map((breed) => `
     <article class="compare-item">
+      <img class="compare-image" src="${escapeHtml(breed.image)}" alt="${escapeHtml(breed.name)}">
       <h3>${escapeHtml(breed.name)}</h3>
       <dl>
-        <dt>Origin</dt><dd>${escapeHtml(breed.origin)}</dd>
-        <dt>Size</dt><dd>${escapeHtml(breed.size)}</dd>
-        <dt>Flight</dt><dd>${escapeHtml(breed.flight)}</dd>
-        <dt>Temperament</dt><dd>${escapeHtml(breed.temperament)}</dd>
+        <dt>Origin</dt><dd>${escapeHtml(displayValue("Origin", breed.origin))}</dd>
+        <dt>Size</dt><dd>${escapeHtml(displayValue("Size", breed.size))}</dd>
+        <dt>Flight</dt><dd>${escapeHtml(displayValue("Flight", breed.flight))}</dd>
+        <dt>Temperament</dt><dd>${escapeHtml(displayValue("Temperament", breed.temperament))}</dd>
       </dl>
     </article>
   `).join("");
