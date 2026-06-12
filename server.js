@@ -4,7 +4,14 @@ const path = require("path");
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "public");
-const allowedRootFiles = new Set(["index.html", "styles.css", "script.js"]);
+const allowedRootFiles = new Set([
+  "index.html",
+  "styles.css",
+  "script.js",
+  "pigeondex.html",
+  "pigeondex.css",
+  "pigeondex.js"
+]);
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",

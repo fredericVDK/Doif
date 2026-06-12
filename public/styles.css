@@ -55,6 +55,30 @@ body {
   border-bottom: 1px solid rgba(38, 48, 45, 0.14);
 }
 
+.site-nav {
+  position: absolute;
+  top: 18px;
+  right: clamp(18px, 4vw, 54px);
+}
+
+.site-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgba(32, 48, 45, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.58);
+  color: #20302d;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.site-nav a:hover {
+  background: rgba(255, 255, 255, 0.82);
+}
+
 .intro h1 {
   margin: 0;
   color: #20302d;
@@ -249,7 +273,12 @@ body.has-fed .hint {
   }
 
   .intro {
-    padding: 28px 18px 24px;
+    padding: 62px 18px 24px;
+  }
+
+  .site-nav {
+    top: 14px;
+    right: 14px;
   }
 
   .intro h1 {

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Search pigeon breeds using live Wikipedia and Wikidata API data.">
+    <title>PigeonDex</title>
+    <link rel="stylesheet" href="pigeondex.css">
+  </head>
+  <body>
+    <header class="dex-header">
+      <nav class="dex-nav" aria-label="Site navigation">
+        <a href="index.html">Feed pigeons</a>
+      </nav>
+      <div>
+        <p class="eyebrow">Live API bird book</p>
+        <h1>PigeonDex</h1>
+        <p class="lede">
+          Search domestic pigeon breeds with data loaded from Wikipedia,
+          Wikidata, and Wikimedia image APIs. Fields that are not available in
+          those databases are shown honestly instead of guessed.
+        </p>
+      </div>
+    </header>
+
+    <main class="dex-shell">
+      <section class="controls" aria-label="PigeonDex controls">
+        <label class="search-box">
+          <span>Search breeds</span>
+          <input id="searchInput" type="search" autocomplete="off" placeholder="Fantail, tumbler, pouter...">
+        </label>
+        <button id="randomButton" type="button">Random pigeon</button>
+        <button id="favoritesButton" type="button" aria-pressed="false">Favorites</button>
+      </section>
+
+      <section class="compare-panel" aria-label="Breed comparison">
+        <div>
+          <h2>Breed comparison</h2>
+          <p>Select up to two breeds from the cards to compare them here.</p>
+        </div>
+        <div id="compareGrid" class="compare-grid"></div>
+      </section>
+
+      <section class="status" id="status" role="status">Loading pigeon breeds from live APIs...</section>
+      <section class="breed-grid" id="breedGrid" aria-label="Pigeon breed results"></section>
+    </main>
+
+    <script src="pigeondex.js"></script>
+  </body>
+</html>
