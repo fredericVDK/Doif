@@ -7,6 +7,8 @@ const LIST_PAGE = "List_of_pigeon_breeds";
 const PAGE_BATCH_SIZE = 35;
 const MAX_INITIAL_BREEDS = 260;
 const favoritesKey = "pigeondex:favorites";
+const dailyHistoryKey = "pigeondex:daily-history";
+const battleHistoryKey = "pigeondex:battle-history";
 const MISSING_SOURCE = "Not listed in source";
 
 const breedGrid = document.querySelector("#breedGrid");
@@ -14,12 +16,22 @@ const statusEl = document.querySelector("#status");
 const searchInput = document.querySelector("#searchInput");
 const randomButton = document.querySelector("#randomButton");
 const favoritesButton = document.querySelector("#favoritesButton");
+const fightButton = document.querySelector("#fightButton");
 const compareGrid = document.querySelector("#compareGrid");
+const dailyPigeon = document.querySelector("#dailyPigeon");
+const dailyHistoryEl = document.querySelector("#dailyHistory");
+const battleSlots = document.querySelector("#battleSlots");
+const battleStage = document.querySelector("#battleStage");
+const battleHistoryEl = document.querySelector("#battleHistory");
 
 let breeds = [];
 let favorites = new Set(JSON.parse(localStorage.getItem(favoritesKey) || "[]"));
 let compareIds = [];
+let battleIds = [];
 let showFavoritesOnly = false;
+let lastRandomId = "";
+let isBattling = false;
+let battleHasResult = false;
 
 function apiUrl(base, params) {
   const url = new URL(base);
@@ -414,6 +426,123 @@ function countMissing() {
   );
 }
 
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function seededIndex(seed, max) {
+  let hash = 2166136261;
+
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return Math.abs(hash) % max;
+}
+
+function dailyBreed() {
+  if (!breeds.length) return null;
+
+  return breeds[seededIndex(todayKey(), breeds.length)];
+}
+
+function loadHistory(key) {
+  return JSON.parse(localStorage.getItem(key) || "[]");
+}
+
+function saveHistory(key, entries, limit = 8) {
+  localStorage.setItem(key, JSON.stringify(entries.slice(0, limit)));
+}
+
+function updateDailyHistory(breed) {
+  if (!breed) return;
+
+  const history = loadHistory(dailyHistoryKey);
+  const entry = {
+    date: todayKey(),
+    id: breed.id,
+    name: breed.name
+  };
+  const next = [entry, ...history.filter((item) => item.date !== entry.date)];
+  saveHistory(dailyHistoryKey, next, 10);
+}
+
+function rarityFor(breed) {
+  const text = `${breed.name} ${breed.fact}`.toLowerCase();
+
+  if (/\b(rare|endangered|old|ancient|historic)\b/.test(text)) return "Rare";
+  if (/\b(common|popular|widespread)\b/.test(text)) return "Common";
+  if (breed.origin === MISSING_SOURCE || breed.image === FALLBACK_IMAGE) return "Hard to document";
+  return "Specialist breed";
+}
+
+function beautyScore(breed) {
+  const text = `${breed.name} ${breed.fact}`.toLowerCase();
+  let score = 55;
+
+  if (/\b(fantail|frill|owl|shield|lace|trumpeter|jacobin|pouter|cropper)\b/.test(text)) score += 22;
+  if (/\b(show|fancy|exhibition|ornamental)\b/.test(text)) score += 15;
+  if (breed.image !== FALLBACK_IMAGE) score += 8;
+  return clampScore(score + seededIndex(`${breed.id}:beauty`, 13));
+}
+
+function flightScore(breed) {
+  const value = breed.flight;
+  let score = 42;
+
+  if (value === "Strong flyer") score = 88;
+  if (value === "Acrobatic flyer") score = 82;
+  if (value === "Mostly show/fancy") score = 48;
+  if (value === MISSING_SOURCE) score = 56;
+  return clampScore(score + seededIndex(`${breed.id}:flight`, 11) - 5);
+}
+
+function weightScore(breed) {
+  if (breed.size === "Large") return 86 + seededIndex(`${breed.id}:weight`, 8);
+  if (breed.size === "Medium") return 66 + seededIndex(`${breed.id}:weight`, 10);
+  if (breed.size === "Small") return 42 + seededIndex(`${breed.id}:weight`, 10);
+  return 58 + seededIndex(`${breed.id}:weight`, 12);
+}
+
+function rarityScore(breed) {
+  const rarity = rarityFor(breed);
+
+  if (rarity === "Rare") return 92;
+  if (rarity === "Hard to document") return 78;
+  if (rarity === "Specialist breed") return 68;
+  return 45;
+}
+
+function clampScore(value) {
+  return Math.max(1, Math.min(99, value));
+}
+
+function battleStats(breed) {
+  return {
+    weight: weightScore(breed),
+    flight: flightScore(breed),
+    beauty: beautyScore(breed),
+    rarity: rarityScore(breed)
+  };
+}
+
+function battleTotal(stats) {
+  return stats.weight * 0.22 + stats.flight * 0.28 + stats.beauty * 0.28 + stats.rarity * 0.22;
+}
+
+function battleReason(winner, loser, stats) {
+  const best = Object.entries(stats).sort((a, b) => b[1] - a[1])[0][0];
+  const labels = {
+    weight: "body power",
+    flight: "air control",
+    beauty: "runway confidence",
+    rarity: "mysterious aura"
+  };
+
+  return `${winner.name} wins with superior ${labels[best]} against ${loser.name}.`;
+}
+
 async function loadBreeds() {
   try {
     const titles = await fetchBreedTitles();
@@ -446,8 +575,14 @@ async function loadBreeds() {
       .sort((a, b) => a.name.localeCompare(b.name));
 
     render();
+    renderDaily();
+    renderBattle();
     enrichMissingData()
-      .then(render)
+      .then(() => {
+        render();
+        renderDaily();
+        renderBattle();
+      })
       .catch((error) => {
         console.warn("Some extra PigeonDex enrichment calls failed.", error);
         render();
@@ -481,6 +616,7 @@ function render() {
       : "No breeds match that search."
   );
   renderCompare();
+  renderBattle();
 }
 
 function renderCard(breed) {
@@ -504,6 +640,7 @@ function renderCard(breed) {
         <p class="summary">${escapeHtml(breed.fact)}</p>
         <div class="card-actions">
           <button type="button" data-compare="${escapeHtml(breed.id)}">${isCompared ? "Remove compare" : "Compare"}</button>
+          <button type="button" data-battle="${escapeHtml(breed.id)}">${battleIds.includes(breed.id) ? "Ready" : "Prepare for battle"}</button>
           <a class="source-link" href="${escapeHtml(breed.sourceUrl)}" target="_blank" rel="noreferrer">Source</a>
         </div>
       </div>
@@ -552,6 +689,107 @@ function renderCompare() {
   `).join("");
 }
 
+function renderDaily() {
+  const breed = dailyBreed();
+
+  if (!breed) return;
+
+  updateDailyHistory(breed);
+  dailyPigeon.innerHTML = `
+    <img src="${escapeHtml(breed.image)}" alt="${escapeHtml(breed.name)}">
+    <div>
+      <h3>Today's pigeon: ${escapeHtml(breed.name)}</h3>
+      <dl class="daily-meta">
+        <div><dt>History</dt><dd>${escapeHtml(breed.fact)}</dd></div>
+        <div><dt>Fun fact</dt><dd>${escapeHtml(displayValue("Flight", breed.flight))} with ${escapeHtml(displayValue("Temperament", breed.temperament).toLowerCase())} energy.</dd></div>
+        <div><dt>Breed rarity</dt><dd>${escapeHtml(rarityFor(breed))}</dd></div>
+      </dl>
+    </div>
+  `;
+  renderDailyHistory();
+}
+
+function renderDailyHistory() {
+  const history = loadHistory(dailyHistoryKey);
+  dailyHistoryEl.innerHTML = history.length
+    ? history.map((item) => `<li>${escapeHtml(item.date)}: ${escapeHtml(item.name)}</li>`).join("")
+    : '<li class="empty">No previous daily pigeons yet.</li>';
+}
+
+function renderBattle() {
+  const selected = battleIds.map((id) => breeds.find((breed) => breed.id === id)).filter(Boolean);
+
+  fightButton.disabled = selected.length !== 2 || isBattling;
+  battleSlots.innerHTML = [0, 1].map((index) => {
+    const breed = selected[index];
+
+    if (!breed) {
+      return `<div class="battle-slot"><p class="empty">Battle slot ${index + 1}</p></div>`;
+    }
+
+    return `
+      <div class="battle-slot">
+        <strong>${escapeHtml(breed.name)}</strong>
+        <p>${escapeHtml(displayValue("Flight", breed.flight))} / ${escapeHtml(rarityFor(breed))}</p>
+      </div>
+    `;
+  }).join("");
+
+  if (!selected.length && !isBattling && !battleHasResult) {
+    battleStage.innerHTML = '<p class="empty">No battle prepared yet.</p>';
+  }
+
+  renderBattleHistory();
+}
+
+function renderBattleHistory() {
+  const history = loadHistory(battleHistoryKey);
+  battleHistoryEl.innerHTML = history.length
+    ? history.map((item) => `<li>${escapeHtml(item.date)}: ${escapeHtml(item.left)} vs ${escapeHtml(item.right)} - ${escapeHtml(item.winner)} won</li>`).join("")
+    : '<li class="empty">No battles yet.</li>';
+}
+
+function renderBattleCard(breed) {
+  const stats = battleStats(breed);
+
+  return `
+    <article class="battle-card">
+      <img src="${escapeHtml(breed.image)}" alt="${escapeHtml(breed.name)}">
+      <h3>${escapeHtml(breed.name)}</h3>
+      <dl class="battle-stats">
+        <div><dt>Weight</dt><dd>${stats.weight}</dd></div>
+        <div><dt>Flight</dt><dd>${stats.flight}</dd></div>
+        <div><dt>Beauty</dt><dd>${stats.beauty}</dd></div>
+        <div><dt>Rarity</dt><dd>${stats.rarity}</dd></div>
+      </dl>
+    </article>
+  `;
+}
+
+function renderDustCloud() {
+  return `
+    <div class="dust-cloud" aria-label="Battle dust cloud">
+      <span></span><span></span><span></span><span></span>
+    </div>
+  `;
+}
+
+function renderWinner(winner, loser, stats) {
+  return `
+    <article class="winner-card">
+      <img src="${escapeHtml(winner.image)}" alt="${escapeHtml(winner.name)}">
+      <h3>${escapeHtml(winner.name)} wins</h3>
+      <p>${escapeHtml(battleReason(winner, loser, stats))}</p>
+      <dl class="battle-stats">
+        <div><dt>Weight</dt><dd>${stats.weight}</dd></div>
+        <div><dt>Flight</dt><dd>${stats.flight}</dd></div>
+        <div><dt>Beauty</dt><dd>${stats.beauty}</dd></div>
+        <div><dt>Rarity</dt><dd>${stats.rarity}</dd></div>
+      </dl>
+    </article>
+  `;
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -581,28 +819,110 @@ function toggleCompare(id) {
   render();
 }
 
+function toggleBattle(id) {
+  if (battleIds.includes(id)) {
+    battleIds = battleIds.filter((breedId) => breedId !== id);
+  } else {
+    battleIds = [...battleIds, id].slice(-2);
+  }
+
+  battleHasResult = false;
+  scrollToTop();
+  render();
+}
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function selectDifferentRandom() {
+  const pool = breeds.filter((breed) => breed.id !== lastRandomId);
+
+  if (!pool.length) return null;
+
+  const breed = pool[Math.floor(Math.random() * pool.length)];
+  lastRandomId = breed.id;
+  return breed;
+}
+
+function recordBattle(left, right, winner) {
+  const history = loadHistory(battleHistoryKey);
+  const entry = {
+    date: new Date().toLocaleString(),
+    left: left.name,
+    right: right.name,
+    winner: winner.name
+  };
+
+  saveHistory(battleHistoryKey, [entry, ...history], 10);
+}
+
+function fightBattle() {
+  if (isBattling || battleIds.length !== 2) return;
+
+  const fighters = battleIds.map((id) => breeds.find((breed) => breed.id === id)).filter(Boolean);
+
+  if (fighters.length !== 2) return;
+
+  const [left, right] = fighters;
+  const leftStats = battleStats(left);
+  const rightStats = battleStats(right);
+  const leftTotal = battleTotal(leftStats);
+  const rightTotal = battleTotal(rightStats);
+  const winner = leftTotal >= rightTotal ? left : right;
+  const loser = winner === left ? right : left;
+  const winnerStats = winner === left ? leftStats : rightStats;
+
+  isBattling = true;
+  battleHasResult = false;
+  scrollToTop();
+  fightButton.disabled = true;
+  battleStage.classList.add("is-fighting");
+  battleStage.innerHTML = `
+    <div class="battle-matchup">
+      ${renderBattleCard(left)}
+      <div class="versus">${renderDustCloud()}</div>
+      ${renderBattleCard(right)}
+    </div>
+  `;
+
+  window.setTimeout(() => {
+    battleStage.classList.remove("is-fighting");
+    battleStage.innerHTML = renderWinner(winner, loser, winnerStats);
+    recordBattle(left, right, winner);
+    isBattling = false;
+    battleHasResult = true;
+    renderBattle();
+  }, 5000);
+}
+
 breedGrid.addEventListener("click", (event) => {
   const favoriteButton = event.target.closest("[data-favorite]");
   const compareButton = event.target.closest("[data-compare]");
+  const battleButton = event.target.closest("[data-battle]");
 
   if (favoriteButton) toggleFavorite(favoriteButton.dataset.favorite);
   if (compareButton) toggleCompare(compareButton.dataset.compare);
+  if (battleButton) toggleBattle(battleButton.dataset.battle);
 });
 
 searchInput.addEventListener("input", render);
 
 favoritesButton.addEventListener("click", () => {
+  scrollToTop();
   showFavoritesOnly = !showFavoritesOnly;
   favoritesButton.setAttribute("aria-pressed", String(showFavoritesOnly));
   render();
 });
 
+fightButton.addEventListener("click", fightBattle);
+
 randomButton.addEventListener("click", () => {
-  const pool = visibleBreeds();
+  scrollToTop();
+  const breed = selectDifferentRandom();
 
-  if (!pool.length) return;
+  if (!breed) return;
 
-  const breed = pool[Math.floor(Math.random() * pool.length)];
   searchInput.value = breed.name;
   showFavoritesOnly = false;
   favoritesButton.setAttribute("aria-pressed", "false");

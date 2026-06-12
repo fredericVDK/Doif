@@ -100,11 +100,18 @@ h1 {
 }
 
 .controls {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto auto;
+  grid-template-columns: minmax(220px, 1fr) auto auto auto;
   gap: 12px;
   align-items: end;
+  padding: 12px 0;
   margin-bottom: 16px;
+  background:
+    linear-gradient(rgba(239, 242, 232, 0.94), rgba(239, 242, 232, 0.76)),
+    url("assets/pavement-floor.png") center top / cover fixed;
 }
 
 .search-box {
@@ -128,6 +135,8 @@ h1 {
 }
 
 .compare-panel,
+.daily-panel,
+.battle-panel,
 .status,
 .breed-card {
   border: 1px solid var(--line);
@@ -143,6 +152,259 @@ h1 {
   align-items: start;
   padding: 16px;
   margin-bottom: 16px;
+}
+
+.daily-panel,
+.battle-panel {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.daily-panel {
+  grid-template-columns: minmax(180px, 260px) minmax(280px, 1fr) minmax(180px, 280px);
+  align-items: start;
+}
+
+.battle-head {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(280px, 520px);
+  gap: 16px;
+  align-items: start;
+}
+
+.section-kicker {
+  margin: 0 0 6px;
+  color: var(--accent-dark);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.daily-panel h2,
+.battle-panel h2,
+.daily-panel h3,
+.battle-panel h3 {
+  margin: 0 0 8px;
+}
+
+.daily-panel p,
+.battle-panel p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.daily-card,
+.battle-slots {
+  display: grid;
+  gap: 12px;
+}
+
+.daily-card {
+  grid-template-columns: 180px 1fr;
+  align-items: start;
+}
+
+.daily-card img,
+.battle-card img,
+.winner-card img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #d9ddd3;
+}
+
+.daily-card h3,
+.battle-card h3,
+.winner-card h3 {
+  margin: 0 0 8px;
+}
+
+.daily-meta,
+.battle-stats {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.daily-meta div,
+.battle-stats div {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  gap: 10px;
+}
+
+.daily-meta dt,
+.battle-stats dt {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.daily-meta dd,
+.battle-stats dd {
+  margin: 0;
+}
+
+.history-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+  color: var(--muted);
+}
+
+.battle-slots {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.battle-slot,
+.battle-card,
+.winner-card {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.battle-slot {
+  min-height: 82px;
+}
+
+.battle-stage {
+  min-height: 220px;
+  padding: 14px;
+  border: 1px dashed rgba(32, 48, 45, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.42);
+  overflow: hidden;
+}
+
+.battle-matchup {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 150px minmax(180px, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.versus {
+  display: grid;
+  place-items: center;
+  min-height: 170px;
+  color: var(--accent-dark);
+  font-size: 38px;
+  font-weight: 900;
+}
+
+.battle-stage.is-fighting .battle-card:first-child {
+  animation: lunge-left 520ms ease-in-out infinite alternate;
+}
+
+.battle-stage.is-fighting .battle-card:last-child {
+  animation: lunge-right 520ms ease-in-out infinite alternate;
+}
+
+.dust-cloud {
+  position: relative;
+  width: 150px;
+  height: 150px;
+}
+
+.dust-cloud span {
+  position: absolute;
+  border: 3px solid #6d4d33;
+  border-radius: 50%;
+  background: #f2dfbf;
+  box-shadow: 0 6px 0 rgba(32, 48, 45, 0.08);
+  animation: dust-pop 700ms ease-in-out infinite alternate;
+}
+
+.dust-cloud span:nth-child(1) {
+  width: 92px;
+  height: 72px;
+  left: 25px;
+  top: 36px;
+}
+
+.dust-cloud span:nth-child(2) {
+  width: 62px;
+  height: 54px;
+  left: 3px;
+  top: 54px;
+  animation-delay: 120ms;
+}
+
+.dust-cloud span:nth-child(3) {
+  width: 66px;
+  height: 58px;
+  right: 0;
+  top: 45px;
+  animation-delay: 220ms;
+}
+
+.dust-cloud span:nth-child(4) {
+  width: 54px;
+  height: 48px;
+  left: 50px;
+  top: 12px;
+  animation-delay: 320ms;
+}
+
+.winner-card {
+  position: relative;
+  width: min(560px, 100%);
+  margin: 0 auto;
+  text-align: center;
+  animation: winner-grow 520ms ease-out both;
+}
+
+.winner-card::before {
+  content: "\1F3C6";
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  font-size: clamp(62px, 9vw, 116px);
+  filter: drop-shadow(0 8px 10px rgba(32, 48, 45, 0.25));
+}
+
+.winner-card img {
+  aspect-ratio: 16 / 10;
+}
+
+.winner-card dl {
+  margin-top: 12px;
+  text-align: left;
+}
+
+@keyframes lunge-left {
+  to {
+    transform: translateX(20px) rotate(1.5deg);
+  }
+}
+
+@keyframes lunge-right {
+  to {
+    transform: translateX(-20px) rotate(-1.5deg);
+  }
+}
+
+@keyframes dust-pop {
+  to {
+    transform: scale(1.12) rotate(4deg);
+  }
+}
+
+@keyframes winner-grow {
+  from {
+    opacity: 0;
+    transform: scale(0.72);
+  }
 }
 
 .compare-panel h2 {
@@ -316,8 +578,24 @@ h1 {
 
   .controls,
   .compare-panel,
+  .daily-panel,
+  .battle-head,
+  .battle-matchup,
   .compare-grid {
     grid-template-columns: 1fr;
+  }
+
+  .controls {
+    gap: 8px;
+  }
+
+  .daily-card,
+  .battle-slots {
+    grid-template-columns: 1fr;
+  }
+
+  .versus {
+    min-height: 130px;
   }
 
   .compare-item {
