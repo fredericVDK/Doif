@@ -10,6 +10,8 @@
   <body>
     <header class="dex-header">
       <nav class="dex-nav" aria-label="Site navigation">
+        <a href="pigeondex.html" aria-current="page">PigeonDex</a>
+        <a href="pigder.html">Pigder</a>
         <a href="index.html">Feed pigeons</a>
       </nav>
       <div class="header-copy">
@@ -47,6 +49,21 @@
           </label>
           <button id="randomButton" type="button">Random pigeon</button>
           <button id="favoritesButton" type="button" aria-pressed="false">Favorites</button>
+        </section>
+
+        <section class="rate-panel" aria-label="Rate My Pigeon">
+          <div>
+            <p class="section-kicker">Rate My Pigeon</p>
+            <h2>The Most Ridiculous One</h2>
+            <p>Upload a pigeon photo and receive a very serious personality report.</p>
+          </div>
+          <label class="upload-box">
+            <span>Upload pigeon photo</span>
+            <input id="rateUpload" type="file" accept="image/*">
+          </label>
+          <article id="rateResult" class="rate-result">
+            <p class="empty">No pigeon judged yet.</p>
+          </article>
         </section>
 
         <section class="compare-panel" aria-label="Breed comparison">

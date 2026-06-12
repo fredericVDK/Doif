@@ -10,7 +10,10 @@ const allowedRootFiles = new Set([
   "script.js",
   "pigeondex.html",
   "pigeondex.css",
-  "pigeondex.js"
+  "pigeondex.js",
+  "pigder.html",
+  "pigder.css",
+  "pigder.js"
 ]);
 
 const mimeTypes = {

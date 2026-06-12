@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Swipe through pigeon breeds and discover your ideal pigeon.">
+    <title>Pigder</title>
+    <link rel="stylesheet" href="pigder.css">
+  </head>
+  <body>
+    <header class="pigder-header">
+      <nav class="pigder-nav" aria-label="Site navigation">
+        <a href="pigeondex.html">PigeonDex</a>
+        <a href="pigder.html" aria-current="page">Pigder</a>
+        <a href="index.html">Feed pigeons</a>
+      </nav>
+      <div>
+        <p class="eyebrow">Would I Like This Pigeon?</p>
+        <h1>Pigder</h1>
+        <p class="lede">Swipe through 20 pigeon breeds and discover your extremely scientific pigeon type.</p>
+      </div>
+    </header>
+
+    <main class="pigder-shell">
+      <section class="swipe-panel" aria-label="Pigeon swipe card">
+        <div class="progress-row">
+          <span id="swipeCount">0 / 20 swipes</span>
+          <button id="restartButton" type="button">Restart</button>
+        </div>
+
+        <article id="swipeCard" class="swipe-card">
+          <p class="empty">Loading pigeons from live APIs...</p>
+        </article>
+
+        <div class="swipe-actions" aria-label="Swipe choices">
+          <button id="nopeButton" class="nope" type="button">Nope</button>
+          <button id="likeButton" class="like" type="button">Like</button>
+        </div>
+      </section>
+
+      <aside id="resultPanel" class="result-panel" aria-label="Pigder result">
+        <p class="section-kicker">Your result</p>
+        <h2>Keep swiping</h2>
+        <p>After 20 swipes, Pigder will reveal your ideal pigeon and your preferences.</p>
+      </aside>
+    </main>
+
+    <script src="pigder.js"></script>
+  </body>
+</html>

@@ -23,6 +23,8 @@ const dailyHistoryEl = document.querySelector("#dailyHistory");
 const battleSlots = document.querySelector("#battleSlots");
 const battleStage = document.querySelector("#battleStage");
 const battleHistoryEl = document.querySelector("#battleHistory");
+const rateUpload = document.querySelector("#rateUpload");
+const rateResult = document.querySelector("#rateResult");
 
 let breeds = [];
 let favorites = new Set(JSON.parse(localStorage.getItem(favoritesKey) || "[]"));
@@ -870,13 +872,91 @@ function selectDifferentRandom() {
 function recordBattle(left, right, winner) {
   const history = loadHistory(battleHistoryKey);
   const entry = {
-    date: new Date().toLocaleString(),
+    date: todayKey(),
     left: left.name,
     right: right.name,
     winner: winner.name
   };
 
   saveHistory(battleHistoryKey, [entry, ...history], 10);
+}
+
+function seededNumber(text) {
+  let seed = 0;
+
+  for (let index = 0; index < text.length; index += 1) {
+    seed = (seed * 31 + text.charCodeAt(index)) >>> 0;
+  }
+
+  return seed;
+}
+
+function seededPick(items, seed, offset = 0) {
+  return items[(seed + offset) % items.length];
+}
+
+function handleRateUpload(event) {
+  const [file] = event.target.files;
+
+  if (!file) return;
+
+  const seed = seededNumber(`${file.name}:${file.size}:${file.lastModified}`);
+  const elegance = (5.6 + (seed % 43) / 10).toFixed(1);
+  const threat = ((seed >> 5) % 31 / 10).toFixed(1);
+  const looks = seededPick([
+    "a Victorian gentleman",
+    "a tiny mayor with excellent posture",
+    "a retired opera critic",
+    "a pastry inspector in disguise",
+    "a sidewalk philosopher",
+    "a royal messenger who lost the message"
+  ], seed);
+  const mood = seededPick([
+    "deeply confident",
+    "mildly suspicious of modern architecture",
+    "ready to judge crumbs by texture",
+    "dramatic but fair",
+    "quietly powerful",
+    "surprisingly diplomatic"
+  ], seed, 7);
+  const talent = seededPick([
+    "finding the sunniest square of pavement",
+    "entering every photo like it owns the museum",
+    "turning one crumb into a public event",
+    "staring into the middle distance with purpose",
+    "making grey feathers look expensive",
+    "walking away from nonsense with dignity"
+  ], seed, 13);
+  const previewUrl = URL.createObjectURL(file);
+
+  rateResult.innerHTML = `
+    <img class="rating-photo" src="${previewUrl}" alt="Uploaded pigeon photo">
+    <div>
+      <div class="rating-grid">
+        <div class="rating-pill">
+          <span>Elegance</span>
+          <strong>${elegance}/10</strong>
+        </div>
+        <div class="rating-pill">
+          <span>Threat level</span>
+          <strong>${threat}/10</strong>
+        </div>
+        <div class="rating-pill">
+          <span>Looks like</span>
+          <strong>${looks}</strong>
+        </div>
+        <div class="rating-pill">
+          <span>Report</span>
+          <strong>GPT-style</strong>
+        </div>
+      </div>
+      <p class="personality-report">
+        Pigeon Personality Report: This pigeon appears ${mood}. Its strongest
+        known talent is ${talent}. Recommended treatment: respectful eye contact,
+        premium crumbs, and room to make one mysterious little turn.
+      </p>
+    </div>
+  `;
 }
 
 function fightBattle() {
@@ -937,6 +1017,8 @@ favoritesButton.addEventListener("click", () => {
 });
 
 fightButton.addEventListener("click", fightBattle);
+
+rateUpload.addEventListener("change", handleRateUpload);
 
 randomButton.addEventListener("click", () => {
   scrollToTop();
