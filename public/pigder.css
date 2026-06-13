@@ -130,7 +130,28 @@ h1 {
 }
 
 .swipe-card {
+  position: relative;
   overflow: hidden;
+  touch-action: pan-y;
+  transform-origin: 50% 88%;
+  transition: transform 220ms ease, opacity 220ms ease;
+  user-select: none;
+  will-change: transform;
+}
+
+.swipe-card.dragging {
+  cursor: grabbing;
+  transition: none;
+}
+
+.swipe-card.fly-right {
+  opacity: 0;
+  transform: translateX(120vw) rotate(18deg) !important;
+}
+
+.swipe-card.fly-left {
+  opacity: 0;
+  transform: translateX(-120vw) rotate(-18deg) !important;
 }
 
 .swipe-card img {
@@ -138,6 +159,37 @@ h1 {
   aspect-ratio: 16 / 10;
   object-fit: cover;
   background: #d9ddd3;
+  pointer-events: none;
+}
+
+.swipe-stamps {
+  position: absolute;
+  inset: 18px;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.swipe-stamps span {
+  align-self: flex-start;
+  padding: 8px 12px;
+  border: 3px solid currentColor;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.74);
+  font-size: 24px;
+  font-weight: 900;
+  text-transform: uppercase;
+  transform: rotate(-10deg);
+}
+
+.stamp-like {
+  color: var(--accent-dark);
+  opacity: var(--swipe-like-opacity, 0);
+}
+
+.stamp-nope {
+  color: #8a4a4a;
+  opacity: var(--swipe-nope-opacity, 0);
 }
 
 .swipe-body {
@@ -185,6 +237,11 @@ h1 {
   margin: 0;
   color: var(--muted);
   line-height: 1.45;
+}
+
+.type-report {
+  color: rgba(32, 48, 45, 0.82);
+  font-weight: 700;
 }
 
 .swipe-actions {
@@ -250,5 +307,17 @@ h1 {
 
   .result-panel {
     position: static;
+  }
+
+  .swipe-actions {
+    position: sticky;
+    bottom: 10px;
+    z-index: 5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .swipe-card {
+    transition: none;
   }
 }

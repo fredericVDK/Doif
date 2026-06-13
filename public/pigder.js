@@ -1,5 +1,6 @@
 const WIKI_API = "https://en.wikipedia.org/w/api.php";
 const FALLBACK_IMAGE = "assets/pigeon-hero-wide.png";
+const BREED_CACHE_API = "/api/breeds";
 const LIST_PAGE = "List_of_pigeon_breeds";
 const MAX_SWIPES = 20;
 const MAX_BREEDS = 90;
@@ -16,36 +17,7 @@ let breeds = [];
 let deck = [];
 let currentBreed = null;
 let swipes = [];
-
-const fallbackBreeds = [
-  ["Fantail", "A fancy pigeon known for its dramatic fan-shaped tail.", ["Fancy feathers", "Exhibition pigeons"]],
-  ["Oriental Frill", "A small ornamental pigeon with refined feather details.", ["Fancy feathers", "Small breeds", "Exhibition pigeons"]],
-  ["Stralsund Highflyer", "A flying pigeon associated with high flight ability.", ["Acrobatic flyers", "European classics"]],
-  ["Brunner Pouter", "A tall pouter breed with a theatrical inflated crop.", ["Dramatic pouters", "Exhibition pigeons"]],
-  ["Jacobin", "A fancy pigeon with a hood of feathers around the head.", ["Fancy feathers", "Exhibition pigeons"]],
-  ["German Owl", "A compact fancy pigeon with a short beak and gentle expression.", ["Small breeds", "European classics"]],
-  ["English Carrier", "A historic pigeon breed with a bold, serious profile.", ["Street-smart charm"]],
-  ["Bokhara Trumpeter", "A richly feathered breed often kept for show.", ["Fancy feathers", "Exhibition pigeons"]],
-  ["Tippler", "A flying breed admired for endurance in the air.", ["Acrobatic flyers"]],
-  ["Modena", "A compact exhibition pigeon with a proud stance.", ["Small breeds", "Exhibition pigeons"]],
-  ["King pigeon", "A large domestic pigeon breed with a solid build.", ["Street-smart charm"]],
-  ["Lahore", "A decorative pigeon with striking markings.", ["Fancy feathers", "Exhibition pigeons"]],
-  ["Nun pigeon", "A fancy pigeon with clean contrasting markings.", ["Fancy feathers", "Exhibition pigeons"]],
-  ["Archangel", "A metallic-looking fancy pigeon with dramatic color.", ["Fancy feathers"]],
-  ["Dutch Capuchine", "An old fancy breed with a feathered collar.", ["Fancy feathers", "European classics"]],
-  ["West of England Tumbler", "A tumbler breed associated with agile flight.", ["Acrobatic flyers", "Exhibition pigeons"]],
-  ["Indian Fantail", "A decorative fantail breed with an elegant carriage.", ["Fancy feathers", "Exhibition pigeons"]],
-  ["Frillback", "A pigeon with curled feathers and high fashion energy.", ["Fancy feathers", "Exhibition pigeons"]],
-  ["Saxon Monk", "A marked fancy pigeon from Germany.", ["European classics", "Exhibition pigeons"]],
-  ["Budapest Short-faced Tumbler", "A small tumbler with an intense expression.", ["Small breeds", "Acrobatic flyers"]]
-].map(([name, summary, preferences]) => ({
-  id: name.toLowerCase(),
-  name,
-  image: FALLBACK_IMAGE,
-  hasRealImage: false,
-  summary,
-  preferences
-}));
+let dragState = null;
 
 function apiUrl(base, params) {
   const url = new URL(base);
@@ -61,6 +33,16 @@ async function fetchJson(url) {
   }
 
   return response.json();
+}
+
+async function fetchCachedBreeds() {
+  const data = await fetchJson(BREED_CACHE_API);
+
+  if (!Array.isArray(data.breeds)) {
+    throw new Error("Cached breed response was invalid.");
+  }
+
+  return data.breeds;
 }
 
 function normalizeTitle(title) {
@@ -194,6 +176,19 @@ function buildBreed(page) {
   };
 }
 
+function breedFromCache(breed) {
+  const summary = breed.history || breed.fact || "No short description listed by the API.";
+
+  return {
+    id: breed.id,
+    name: normalizeTitle(breed.name),
+    image: breed.image,
+    hasRealImage: Boolean(breed.hasRealImage || (breed.image && breed.image !== FALLBACK_IMAGE)),
+    summary,
+    preferences: classifyBreed({ name: breed.name, summary })
+  };
+}
+
 function shuffle(items) {
   return [...items].sort(() => Math.random() - 0.5);
 }
@@ -219,6 +214,10 @@ function renderCard() {
 
   swipeCard.innerHTML = `
     <img src="${escapeHtml(currentBreed.image)}" alt="${escapeHtml(currentBreed.name)}">
+    <div class="swipe-stamps" aria-hidden="true">
+      <span class="stamp-nope">Nope</span>
+      <span class="stamp-like">Like</span>
+    </div>
     <div class="swipe-body">
       <h2>${escapeHtml(currentBreed.name)}</h2>
       <div class="facts">
@@ -232,13 +231,19 @@ function renderCard() {
       <p class="summary">${escapeHtml(currentBreed.summary)}</p>
     </div>
   `;
+  resetCardMotion();
 }
 
 function swipe(direction) {
   if (!currentBreed || swipes.length >= MAX_SWIPES) return;
 
+  swipeCard.classList.remove("dragging");
+  swipeCard.classList.add(direction === "like" ? "fly-right" : "fly-left");
   swipes.push({ direction, breed: currentBreed });
-  renderCard();
+  window.setTimeout(() => {
+    swipeCard.classList.remove("fly-right", "fly-left");
+    renderCard();
+  }, 260);
 }
 
 function preferenceWinners(liked) {
@@ -256,7 +261,7 @@ function preferenceWinners(liked) {
     .slice(0, 3);
 }
 
-function renderResult() {
+function renderResultLegacy() {
   const liked = swipes.filter((entry) => entry.direction === "like");
   const favoritePool = liked.length ? liked : swipes;
   const ideal = favoritePool[Math.floor(Math.random() * favoritePool.length)]?.breed || breeds[0];
@@ -286,6 +291,88 @@ function renderResult() {
   updateCount();
 }
 
+function renderResult() {
+  const liked = swipes.filter((entry) => entry.direction === "like");
+  const favoritePool = liked.length ? liked : swipes;
+  const ideal = favoritePool[Math.floor(Math.random() * favoritePool.length)]?.breed || breeds[0];
+  const preferences = preferenceWinners(favoritePool);
+
+  likeButton.disabled = true;
+  nopeButton.disabled = true;
+
+  resultPanel.innerHTML = `
+    <p class="section-kicker">Your pigeon type</p>
+    <h2>${escapeHtml(ideal.name)} person</h2>
+    <img src="${escapeHtml(ideal.image)}" alt="${escapeHtml(ideal.name)}">
+    <p class="type-report">Your ideal pigeon is ${escapeHtml(ideal.name)}: dramatic enough to matter, practical enough to find crumbs, and visually strong enough to interrupt a meeting.</p>
+    <p>You prefer:</p>
+    <ul class="preference-list">
+      ${(preferences.length ? preferences : ["Fancy feathers", "Small breeds", "Exhibition pigeons"]).map((preference) => `
+        <li>&#10003; ${escapeHtml(preference)}</li>
+      `).join("")}
+    </ul>
+  `;
+
+  swipeCard.innerHTML = `
+    <div class="swipe-body">
+      <h2>Match found</h2>
+      <p class="summary">Pigder has reviewed your excellent choices and declared a pigeon destiny.</p>
+    </div>
+  `;
+  updateCount();
+}
+
+function resetCardMotion() {
+  swipeCard.style.transform = "";
+  swipeCard.style.setProperty("--swipe-like-opacity", "0");
+  swipeCard.style.setProperty("--swipe-nope-opacity", "0");
+}
+
+function updateCardMotion(deltaX, deltaY) {
+  const rotation = Math.max(-14, Math.min(14, deltaX / 16));
+  const likeOpacity = Math.max(0, Math.min(1, deltaX / 120));
+  const nopeOpacity = Math.max(0, Math.min(1, -deltaX / 120));
+
+  swipeCard.style.transform = `translate(${deltaX}px, ${deltaY}px) rotate(${rotation}deg)`;
+  swipeCard.style.setProperty("--swipe-like-opacity", String(likeOpacity));
+  swipeCard.style.setProperty("--swipe-nope-opacity", String(nopeOpacity));
+}
+
+function beginDrag(event) {
+  if (!currentBreed || swipes.length >= MAX_SWIPES) return;
+
+  dragState = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY
+  };
+  swipeCard.classList.add("dragging");
+  swipeCard.setPointerCapture(event.pointerId);
+}
+
+function moveDrag(event) {
+  if (!dragState || dragState.pointerId !== event.pointerId) return;
+
+  const deltaX = event.clientX - dragState.startX;
+  const deltaY = event.clientY - dragState.startY;
+  updateCardMotion(deltaX, deltaY);
+}
+
+function endDrag(event) {
+  if (!dragState || dragState.pointerId !== event.pointerId) return;
+
+  const deltaX = event.clientX - dragState.startX;
+  dragState = null;
+  swipeCard.classList.remove("dragging");
+
+  if (Math.abs(deltaX) > 120) {
+    swipe(deltaX > 0 ? "like" : "nope");
+    return;
+  }
+
+  resetCardMotion();
+}
+
 function restart() {
   swipes = [];
   deck = shuffle(breeds);
@@ -305,25 +392,49 @@ async function loadBreeds() {
     const cached = JSON.parse(sessionStorage.getItem(cacheKey) || "null");
 
     if (cached?.length) {
-      breeds = cached;
-      restart();
-      return;
+      const cachedPhotoBreeds = cached.filter((breed) => breed.hasRealImage && breed.image !== FALLBACK_IMAGE);
+
+      if (cachedPhotoBreeds.length >= MAX_SWIPES) {
+        breeds = cachedPhotoBreeds;
+        restart();
+        return;
+      }
+
+      sessionStorage.removeItem(cacheKey);
     }
 
-    const titles = await fetchBreedTitles();
-    const pages = await fetchBreedPages(titles);
-    breeds = pages
-      .map(buildBreed)
-      .sort((left, right) => Number(right.hasRealImage) - Number(left.hasRealImage));
+    try {
+      breeds = (await fetchCachedBreeds())
+        .map(breedFromCache)
+        .filter((breed) => breed.hasRealImage);
+    } catch (cacheError) {
+      console.warn("Pigder cache unavailable, falling back to direct APIs.", cacheError);
+      const titles = await fetchBreedTitles();
+      const pages = await fetchBreedPages(titles);
+      breeds = pages
+        .map(buildBreed)
+        .filter((breed) => breed.hasRealImage);
+    }
+
+    if (breeds.length < MAX_SWIPES) {
+      throw new Error("Not enough image-backed pigeons are available right now.");
+    }
+
+    breeds = breeds.sort((left, right) => left.name.localeCompare(right.name));
     sessionStorage.setItem(cacheKey, JSON.stringify(breeds));
     restart();
   } catch (error) {
-    breeds = fallbackBreeds;
-    restart();
+    breeds = [];
+    swipeCard.innerHTML = `
+      <div class="swipe-body">
+        <h2>Pigder needs photos</h2>
+        <p class="summary">${escapeHtml(error.message)} Try again after the Vercel cache warms up.</p>
+      </div>
+    `;
     resultPanel.innerHTML = `
-      <p class="section-kicker">Live API busy</p>
-      <h2>Fallback flock loaded</h2>
-      <p>The live pigeon database is temporarily rate-limiting requests, so Pigder loaded a small backup flock for swiping.</p>
+      <p class="section-kicker">No standard images</p>
+      <h2>Photo-only mode</h2>
+      <p>Pigder is set to only use pigeons with real breed images, never the standard fallback picture.</p>
     `;
   }
 }
@@ -331,5 +442,9 @@ async function loadBreeds() {
 likeButton.addEventListener("click", () => swipe("like"));
 nopeButton.addEventListener("click", () => swipe("nope"));
 restartButton.addEventListener("click", restart);
+swipeCard.addEventListener("pointerdown", beginDrag);
+swipeCard.addEventListener("pointermove", moveDrag);
+swipeCard.addEventListener("pointerup", endDrag);
+swipeCard.addEventListener("pointercancel", endDrag);
 
 loadBreeds();

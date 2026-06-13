@@ -1,6 +1,7 @@
 const WIKI_API = "https://en.wikipedia.org/w/api.php";
 const WIKIDATA_API = "https://www.wikidata.org/w/api.php";
 const COMMONS_API = "https://commons.wikimedia.org/w/api.php";
+const BREED_CACHE_API = "/api/breeds";
 const COMMONS_FILE = "https://commons.wikimedia.org/wiki/Special:FilePath/";
 const FALLBACK_IMAGE = "assets/pigeon-hero-wide.png";
 const LIST_PAGE = "List_of_pigeon_breeds";
@@ -25,6 +26,8 @@ const battleStage = document.querySelector("#battleStage");
 const battleHistoryEl = document.querySelector("#battleHistory");
 const rateUpload = document.querySelector("#rateUpload");
 const rateResult = document.querySelector("#rateResult");
+const detailPanel = document.querySelector("#detailPanel");
+const battleCommentary = document.querySelector("#battleCommentary");
 
 let breeds = [];
 let favorites = new Set(JSON.parse(localStorage.getItem(favoritesKey) || "[]"));
@@ -34,6 +37,9 @@ let showFavoritesOnly = false;
 let lastRandomId = "";
 let isBattling = false;
 let battleHasResult = false;
+let selectedDetailId = new URLSearchParams(window.location.search).get("breed") || "";
+let battleTimers = [];
+let audioContext = null;
 
 function apiUrl(base, params) {
   const url = new URL(base);
@@ -49,6 +55,16 @@ async function fetchJson(url) {
   }
 
   return response.json();
+}
+
+async function fetchCachedBreeds() {
+  const data = await fetchJson(BREED_CACHE_API);
+
+  if (!Array.isArray(data.breeds)) {
+    throw new Error("Cached breed response was invalid.");
+  }
+
+  return data.breeds;
 }
 
 function setStatus(message) {
@@ -559,8 +575,88 @@ function battleReason(winner, loser, stats) {
   return `${winner.name} wins with superior ${labels[best]} against ${loser.name}.`;
 }
 
+function battleMoveNames(breed) {
+  const seed = seededIndex(`${breed.id}:moves`, 99);
+  const starters = [
+    "Crumb Cyclone",
+    "Pavement Pirouette",
+    "Sidewalk Shoulder Check",
+    "Bread Loaf Feint",
+    "Fancy Feather Flash",
+    "Municipal Head Bob",
+    "Emergency Wing Wiggle",
+    "Tiny Street Thunder"
+  ];
+  const finishers = [
+    "Final Peck Protocol",
+    "Golden Crumb Uppercut",
+    "Royal Strut Slam",
+    "Forbidden Balcony Dive",
+    "Exhibition Hall Shockwave",
+    "Lunch Table Judgment"
+  ];
+
+  return [
+    starters[seed % starters.length],
+    finishers[(seed + breed.name.length) % finishers.length]
+  ];
+}
+
+function battleCommentaryLines(left, right, winner) {
+  const leftMoves = battleMoveNames(left);
+  const rightMoves = battleMoveNames(right);
+
+  return [
+    `${left.name} opens with ${leftMoves[0]}.`,
+    `${right.name} counters using ${rightMoves[0]}.`,
+    `The arena briefly becomes 80% feathers and 20% legal confusion.`,
+    `${winner.name} lands ${battleMoveNames(winner)[1]}.`
+  ];
+}
+
+function clearBattleTimers() {
+  battleTimers.forEach((timer) => window.clearTimeout(timer));
+  battleTimers = [];
+}
+
+function playBattleSound(kind = "tap") {
+  try {
+    audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    const now = audioContext.currentTime;
+
+    oscillator.type = kind === "win" ? "triangle" : "square";
+    oscillator.frequency.setValueAtTime(kind === "win" ? 660 : 180 + Math.random() * 160, now);
+    oscillator.frequency.exponentialRampToValueAtTime(kind === "win" ? 980 : 90, now + 0.16);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(kind === "win" ? 0.08 : 0.035, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.2);
+  } catch (error) {
+    console.warn("Battle sound could not play.", error);
+  }
+}
+
 async function loadBreeds() {
   try {
+    try {
+      breeds = await fetchCachedBreeds();
+      sortBreeds();
+      setStatus(`Loaded ${breeds.length} pigeon breeds from the Vercel API cache.`);
+      render();
+      renderDaily();
+      renderBattle();
+      renderDetail();
+      return;
+    } catch (cacheError) {
+      console.warn("Falling back to direct Wikimedia APIs.", cacheError);
+      setStatus("Cache is warming up. Loading directly from live APIs...");
+    }
+
     const titles = await fetchBreedTitles();
     setStatus(`Found ${titles.length} breed links. Loading API details...`);
 
@@ -594,12 +690,14 @@ async function loadBreeds() {
     render();
     renderDaily();
     renderBattle();
+    renderDetail();
     enrichMissingData()
       .then(() => {
         sortBreeds();
         render();
         renderDaily();
         renderBattle();
+        renderDetail();
       })
       .catch((error) => {
         console.warn("Some extra PigeonDex enrichment calls failed.", error);
@@ -642,6 +740,7 @@ function render() {
   );
   renderCompare();
   renderBattle();
+  renderDetail();
 }
 
 function renderCard(breed) {
@@ -650,10 +749,12 @@ function renderCard(breed) {
 
   return `
     <article class="breed-card">
-      <img class="breed-image" src="${escapeHtml(breed.image)}" alt="${escapeHtml(breed.name)}" loading="lazy">
+      <button class="image-button" type="button" data-detail="${escapeHtml(breed.id)}" aria-label="Open ${escapeHtml(breed.name)} details">
+        <img class="breed-image" src="${escapeHtml(breed.image)}" alt="${escapeHtml(breed.name)}" loading="lazy">
+      </button>
       <div class="breed-body">
         <div class="breed-title">
-          <h2>${escapeHtml(breed.name)}</h2>
+          <h2><button class="title-button" type="button" data-detail="${escapeHtml(breed.id)}">${escapeHtml(breed.name)}</button></h2>
           <button class="icon-button ${isFavorite ? "is-active" : ""}" type="button" data-favorite="${escapeHtml(breed.id)}" aria-label="Favorite ${escapeHtml(breed.name)}">&#9733;</button>
         </div>
         <div class="facts">
@@ -666,8 +767,135 @@ function renderCard(breed) {
         <div class="card-actions">
           <button type="button" data-compare="${escapeHtml(breed.id)}">${isCompared ? "Remove compare" : "Compare"}</button>
           <button type="button" data-battle="${escapeHtml(breed.id)}">${battleIds.includes(breed.id) ? "Ready" : "Prepare for battle"}</button>
+          <button type="button" data-detail="${escapeHtml(breed.id)}">Details</button>
           <a class="source-link" href="${escapeHtml(breed.sourceUrl)}" target="_blank" rel="noreferrer">Source</a>
         </div>
+      </div>
+    </article>
+  `;
+}
+
+function detailTraits(breed) {
+  return [
+    displayValue("Origin", breed.origin),
+    displayValue("Size", breed.size),
+    displayValue("Flight", breed.flight),
+    displayValue("Temperament", breed.temperament),
+    rarityFor(breed)
+  ].filter(Boolean);
+}
+
+function relatedBreeds(breed) {
+  const traits = new Set(detailTraits(breed).map((trait) => trait.toLowerCase()));
+
+  return breeds
+    .filter((candidate) => candidate.id !== breed.id)
+    .map((candidate) => {
+      const candidateTraits = detailTraits(candidate).map((trait) => trait.toLowerCase());
+      const score = candidateTraits.filter((trait) => traits.has(trait)).length;
+      return { candidate, score };
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score || left.candidate.name.localeCompare(right.candidate.name))
+    .slice(0, 4)
+    .map((entry) => entry.candidate);
+}
+
+function originMapUrl(breed) {
+  const origin = displayValue("Origin", breed.origin);
+
+  if (!origin || origin === "No verified origin found") return "";
+
+  return `https://www.openstreetmap.org/search?query=${encodeURIComponent(origin)}`;
+}
+
+function openDetail(id, pushState = true) {
+  selectedDetailId = id;
+
+  if (pushState) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("breed", id);
+    window.history.pushState({ breed: id }, "", url);
+  }
+
+  renderDetail();
+  detailPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function closeDetail(pushState = true) {
+  selectedDetailId = "";
+
+  if (pushState) {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("breed");
+    window.history.pushState({}, "", url);
+  }
+
+  renderDetail();
+}
+
+function renderDetail() {
+  if (!selectedDetailId) {
+    detailPanel.innerHTML = "";
+    detailPanel.hidden = true;
+    return;
+  }
+
+  const breed = breeds.find((item) => item.id === selectedDetailId);
+
+  if (!breed) {
+    detailPanel.innerHTML = "";
+    detailPanel.hidden = true;
+    return;
+  }
+
+  const related = relatedBreeds(breed);
+  const mapUrl = originMapUrl(breed);
+
+  detailPanel.hidden = false;
+  detailPanel.innerHTML = `
+    <article class="detail-card">
+      <div class="detail-hero">
+        <img src="${escapeHtml(breed.image)}" alt="${escapeHtml(breed.name)}">
+        <div>
+          <p class="section-kicker">Breed detail page</p>
+          <h2>${escapeHtml(breed.name)}</h2>
+          <p>${escapeHtml(breed.history || breed.fact)}</p>
+          <div class="detail-actions">
+            <button type="button" data-close-detail>Back to list</button>
+            <a class="source-link" href="${escapeHtml(breed.sourceUrl)}" target="_blank" rel="noreferrer">Source</a>
+          </div>
+        </div>
+      </div>
+      <div class="detail-grid">
+        <section>
+          <h3>Traits</h3>
+          <div class="facts detail-facts">
+            ${renderFact("Origin", breed.origin)}
+            ${renderFact("Size", breed.size)}
+            ${renderFact("Flight", breed.flight)}
+            ${renderFact("Temperament", breed.temperament)}
+            ${renderFact("Rarity", rarityFor(breed))}
+          </div>
+        </section>
+        <section>
+          <h3>Origin map</h3>
+          <div class="map-card">
+            <span>${escapeHtml(displayValue("Origin", breed.origin))}</span>
+            ${mapUrl ? `<a href="${escapeHtml(mapUrl)}" target="_blank" rel="noreferrer">Open map</a>` : "<p>No verified map location found.</p>"}
+          </div>
+        </section>
+        <section class="related-section">
+          <h3>Related breeds</h3>
+          <div class="related-grid">
+            ${related.length ? related.map((item) => `
+              <button type="button" class="related-card" data-detail="${escapeHtml(item.id)}">
+                <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}">
+                <span>${escapeHtml(item.name)}</span>
+              </button>
+            `).join("") : '<p class="empty">No close relatives found yet.</p>'}
+          </div>
+        </section>
       </div>
     </article>
   `;
@@ -770,7 +998,14 @@ function renderBattle() {
 function renderBattleHistory() {
   const history = loadHistory(battleHistoryKey);
   battleHistoryEl.innerHTML = history.length
-    ? history.map((item) => `<li>${escapeHtml(item.date)}: ${escapeHtml(item.left)} vs ${escapeHtml(item.right)} - ${escapeHtml(item.winner)} won</li>`).join("")
+    ? history.map((item) => `
+      <li class="battle-history-card">
+        <strong>${escapeHtml(item.winner)} won</strong>
+        <span>${escapeHtml(item.date)}: ${escapeHtml(item.left)} vs ${escapeHtml(item.right)}</span>
+        ${item.move ? `<em>${escapeHtml(item.move)}</em>` : ""}
+        ${item.reason ? `<p>${escapeHtml(item.reason)}</p>` : ""}
+      </li>
+    `).join("")
     : '<li class="empty">No battles yet.</li>';
 }
 
@@ -871,11 +1106,15 @@ function selectDifferentRandom() {
 
 function recordBattle(left, right, winner) {
   const history = loadHistory(battleHistoryKey);
+  const loser = winner.id === left.id ? right : left;
+  const move = battleMoveNames(winner)[1];
   const entry = {
     date: todayKey(),
     left: left.name,
     right: right.name,
-    winner: winner.name
+    winner: winner.name,
+    move,
+    reason: battleReason(winner, loser, battleStats(winner))
   };
 
   saveHistory(battleHistoryKey, [entry, ...history], 10);
@@ -974,10 +1213,13 @@ function fightBattle() {
   const winner = leftTotal >= rightTotal ? left : right;
   const loser = winner === left ? right : left;
   const winnerStats = winner === left ? leftStats : rightStats;
+  const commentaryLines = battleCommentaryLines(left, right, winner);
 
+  clearBattleTimers();
   isBattling = true;
   battleHasResult = false;
   fightButton.disabled = true;
+  battleCommentary.innerHTML = '<p>The referee finds a whistle. Nobody respects it.</p>';
   battleStage.classList.add("is-fighting");
   battleStage.innerHTML = `
     <div class="battle-matchup">
@@ -986,10 +1228,21 @@ function fightBattle() {
       ${renderBattleCard(right)}
     </div>
   `;
+  playBattleSound("tap");
+
+  commentaryLines.forEach((line, index) => {
+    battleTimers.push(window.setTimeout(() => {
+      battleCommentary.innerHTML = `<p>${escapeHtml(line)}</p>`;
+      playBattleSound(index === commentaryLines.length - 1 ? "win" : "tap");
+    }, 900 + index * 900));
+  });
 
   window.setTimeout(() => {
+    clearBattleTimers();
     battleStage.classList.remove("is-fighting");
     battleStage.innerHTML = renderWinner(winner, loser, winnerStats);
+    battleCommentary.innerHTML = `<p>${escapeHtml(battleReason(winner, loser, winnerStats))}</p>`;
+    playBattleSound("win");
     recordBattle(left, right, winner);
     isBattling = false;
     battleHasResult = true;
@@ -1001,10 +1254,25 @@ breedGrid.addEventListener("click", (event) => {
   const favoriteButton = event.target.closest("[data-favorite]");
   const compareButton = event.target.closest("[data-compare]");
   const battleButton = event.target.closest("[data-battle]");
+  const detailButton = event.target.closest("[data-detail]");
 
   if (favoriteButton) toggleFavorite(favoriteButton.dataset.favorite);
   if (compareButton) toggleCompare(compareButton.dataset.compare);
   if (battleButton) toggleBattle(battleButton.dataset.battle);
+  if (detailButton) openDetail(detailButton.dataset.detail);
+});
+
+detailPanel.addEventListener("click", (event) => {
+  const closeButton = event.target.closest("[data-close-detail]");
+  const detailButton = event.target.closest("[data-detail]");
+
+  if (closeButton) closeDetail();
+  if (detailButton) openDetail(detailButton.dataset.detail);
+});
+
+window.addEventListener("popstate", () => {
+  selectedDetailId = new URLSearchParams(window.location.search).get("breed") || "";
+  renderDetail();
 });
 
 searchInput.addEventListener("input", render);

@@ -6,6 +6,10 @@
     <meta name="description" content="Search pigeon breeds using live Wikipedia and Wikidata API data.">
     <title>PigeonDex</title>
     <link rel="stylesheet" href="pigeondex.css">
+    <script>
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
   </head>
   <body>
     <header class="dex-header">
@@ -51,6 +55,8 @@
           <button id="favoritesButton" type="button" aria-pressed="false">Favorites</button>
         </section>
 
+        <section id="detailPanel" class="detail-panel" aria-label="Breed detail"></section>
+
         <section class="rate-panel" aria-label="Rate My Pigeon">
           <div>
             <p class="section-kicker">Rate My Pigeon</p>
@@ -89,6 +95,7 @@
         <div id="battleStage" class="battle-stage">
           <p class="empty">No battle prepared yet.</p>
         </div>
+        <div id="battleCommentary" class="battle-commentary" aria-live="polite"></div>
         <div>
           <h3>Battle history</h3>
           <ol id="battleHistory" class="history-list"></ol>
