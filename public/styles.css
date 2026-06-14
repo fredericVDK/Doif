@@ -32,6 +32,11 @@ body {
   user-select: none;
 }
 
+button,
+input {
+  font: inherit;
+}
+
 .stage {
   position: relative;
   min-height: 100vh;
@@ -130,6 +135,100 @@ body {
   overflow: hidden;
 }
 
+.feed-board {
+  position: fixed;
+  left: clamp(14px, 3vw, 34px);
+  bottom: clamp(14px, 3vw, 34px);
+  z-index: 10;
+  display: grid;
+  grid-template-columns: auto minmax(150px, 210px);
+  gap: 12px;
+  align-items: start;
+  width: min(440px, calc(100vw - 28px));
+  padding: 14px;
+  border: 1px solid rgba(32, 48, 45, 0.18);
+  border-radius: 10px;
+  background: rgba(250, 251, 245, 0.86);
+  box-shadow: 0 16px 38px rgba(38, 48, 45, 0.2);
+  backdrop-filter: blur(8px);
+  user-select: text;
+}
+
+.feed-counter {
+  display: grid;
+  place-items: center;
+  min-width: 94px;
+  min-height: 94px;
+  border: 1px solid rgba(32, 48, 45, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.feed-counter span,
+.nickname-field span {
+  color: rgba(32, 48, 45, 0.7);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.feed-counter strong {
+  color: #20302d;
+  font-size: 42px;
+  line-height: 0.95;
+}
+
+.nickname-field {
+  display: grid;
+  gap: 6px;
+}
+
+.nickname-field input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 11px;
+  border: 1px solid rgba(32, 48, 45, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #20302d;
+}
+
+.feed-board h2 {
+  grid-column: 1 / -1;
+  margin: 2px 0 0;
+  font-size: 17px;
+}
+
+.leaderboard-list {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 6px;
+  max-height: 154px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.leaderboard-list li {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid rgba(32, 48, 45, 0.11);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  color: rgba(32, 48, 45, 0.82);
+  font-size: 14px;
+}
+
+.leaderboard-list strong {
+  color: #20302d;
+}
+
 .hint {
   position: absolute;
   left: 50%;
@@ -174,8 +273,8 @@ body.has-fed .hint {
 .tiny-pigeon {
   position: absolute;
   z-index: 5;
-  width: 52px;
-  height: 38px;
+  width: 68px;
+  height: 50px;
   transform: translate(-50%, -50%) scaleX(var(--face, 1));
   transform-origin: center;
   transition: opacity 280ms ease;
@@ -187,56 +286,138 @@ body.has-fed .hint {
   opacity: 0;
 }
 
+.tiny-pigeon .shadow {
+  position: absolute;
+  left: 10px;
+  top: 39px;
+  width: 42px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(38, 48, 45, 0.18);
+  filter: blur(1px);
+}
+
+.tiny-pigeon .tail {
+  position: absolute;
+  left: 2px;
+  top: 20px;
+  width: 21px;
+  height: 13px;
+  clip-path: polygon(0 48%, 100% 0, 84% 100%);
+  background: linear-gradient(90deg, #454b52, #697176 62%, #343a40);
+}
+
 .tiny-pigeon .body {
   position: absolute;
-  left: 8px;
-  top: 13px;
-  width: 32px;
-  height: 20px;
+  left: 13px;
+  top: 16px;
+  width: 39px;
+  height: 24px;
   border-radius: 58% 48% 54% 46%;
-  background: var(--pigeon-body);
-  box-shadow: inset -8px -3px 0 var(--pigeon-wing);
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.22) 0 5px, transparent 6px),
+    linear-gradient(145deg, #9aa2a4, var(--pigeon-body) 48%, #596168);
+  box-shadow:
+    inset -7px -4px 0 rgba(54, 61, 68, 0.5),
+    inset 5px 4px 0 rgba(255, 255, 255, 0.14);
+}
+
+.tiny-pigeon .wing {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  width: 29px;
+  height: 17px;
+  border-radius: 58% 44% 52% 44%;
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.16), transparent 30%),
+    repeating-linear-gradient(105deg, transparent 0 5px, rgba(27, 33, 38, 0.35) 6px 8px),
+    var(--pigeon-wing);
+  opacity: 0.92;
+}
+
+.tiny-pigeon .neck {
+  position: absolute;
+  left: 43px;
+  top: 13px;
+  width: 13px;
+  height: 18px;
+  border-radius: 48% 58% 42% 45%;
+  background:
+    radial-gradient(circle at 42% 38%, rgba(126, 79, 150, 0.82) 0 4px, transparent 5px),
+    linear-gradient(135deg, #26796d, var(--pigeon-neck) 45%, #6f7780);
 }
 
 .tiny-pigeon .head {
   position: absolute;
-  left: 32px;
+  left: 50px;
   top: 7px;
-  width: 15px;
-  height: 15px;
+  width: 17px;
+  height: 17px;
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 70% 34%, #161b1f 0 1.7px, transparent 2px),
-    linear-gradient(135deg, var(--pigeon-neck), var(--pigeon-body) 62%);
+  background: linear-gradient(135deg, #a7afb2, #717a80 68%);
+  box-shadow: inset 3px 2px 0 rgba(255, 255, 255, 0.16);
+}
+
+.tiny-pigeon .eye {
+  position: absolute;
+  left: 61px;
+  top: 12px;
+  width: 4px;
+  height: 4px;
+  border: 1px solid #f2d58c;
+  border-radius: 50%;
+  background: #11171a;
 }
 
 .tiny-pigeon .beak {
   position: absolute;
-  left: 45px;
-  top: 13px;
-  width: 10px;
-  height: 5px;
+  left: 66px;
+  top: 14px;
+  width: 11px;
+  height: 6px;
   clip-path: polygon(0 0, 100% 50%, 0 100%);
-  background: #d8a045;
+  background: linear-gradient(90deg, #d8a045, #f0c06b);
 }
 
 .tiny-pigeon .leg {
   position: absolute;
-  top: 31px;
+  top: 38px;
   width: 2px;
-  height: 8px;
+  height: 9px;
   background: var(--pigeon-feet);
 }
 
 .tiny-pigeon .leg.one {
-  left: 20px;
+  left: 28px;
 }
 
 .tiny-pigeon .leg.two {
-  left: 31px;
+  left: 41px;
 }
 
-.tiny-pigeon.eating .head {
+.tiny-pigeon .toe {
+  position: absolute;
+  top: 46px;
+  width: 10px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--pigeon-feet);
+}
+
+.tiny-pigeon .toe.one {
+  left: 23px;
+  transform: rotate(-8deg);
+}
+
+.tiny-pigeon .toe.two {
+  left: 36px;
+  transform: rotate(8deg);
+}
+
+.tiny-pigeon.eating .head,
+.tiny-pigeon.eating .eye,
+.tiny-pigeon.eating .beak {
   animation: peck 220ms ease-in-out 4;
 }
 
@@ -281,6 +462,28 @@ body.has-fed .hint {
     right: 14px;
   }
 
+  .feed-board {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    grid-template-columns: 82px 1fr;
+    width: auto;
+    padding: 10px;
+  }
+
+  .feed-counter {
+    min-width: 76px;
+    min-height: 76px;
+  }
+
+  .feed-counter strong {
+    font-size: 34px;
+  }
+
+  .leaderboard-list {
+    max-height: 96px;
+  }
+
   .intro h1 {
     font-size: 34px;
   }
@@ -291,7 +494,6 @@ body.has-fed .hint {
   }
 
   .tiny-pigeon {
-    width: 44px;
-    height: 32px;
+    scale: 0.82;
   }
 }

@@ -33,6 +33,23 @@
       <section class="playfield" aria-label="Click area">
         <p class="hint">Click anywhere</p>
       </section>
+
+      <aside class="feed-board" aria-label="Pigeon feeding leaderboard">
+        <div class="feed-counter">
+          <span>Feeds</span>
+          <strong id="feedCount">0</strong>
+        </div>
+        <label class="nickname-field">
+          <span>Nickname</span>
+          <input id="nicknameInput" type="text" maxlength="24" autocomplete="nickname" placeholder="Pigeon friend">
+        </label>
+        <div>
+          <h2>Leaderboard</h2>
+          <ol id="leaderboardList" class="leaderboard-list">
+            <li>Loading...</li>
+          </ol>
+        </div>
+      </aside>
     </main>
 
     <script src="script.js"></script>

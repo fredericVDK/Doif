@@ -1,5 +1,6 @@
 const http = require("http");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 
 const PORT = process.env.PORT || 3000;
@@ -18,6 +19,8 @@ let breedCache = {
   data: null,
   pending: null
 };
+const LEADERBOARD_FILE = path.join(os.tmpdir(), "pigeon-crumbs-leaderboard.json");
+let leaderboardScores = loadLeaderboardScores();
 const allowedRootFiles = new Set([
   "index.html",
   "styles.css",
@@ -348,6 +351,71 @@ function sendJson(response, statusCode, data, headers = {}) {
   response.end(JSON.stringify(data));
 }
 
+function loadLeaderboardScores() {
+  try {
+    const saved = JSON.parse(fs.readFileSync(LEADERBOARD_FILE, "utf8"));
+
+    if (!Array.isArray(saved)) return new Map();
+
+    return new Map(saved.map((entry) => [entry.nickname, Number(entry.feeds) || 0]));
+  } catch (error) {
+    return new Map();
+  }
+}
+
+function saveLeaderboardScores() {
+  try {
+    fs.writeFileSync(LEADERBOARD_FILE, JSON.stringify([...leaderboardScores.entries()].map(([nickname, feeds]) => ({
+      nickname,
+      feeds
+    }))));
+  } catch (error) {
+    console.warn("Could not save leaderboard scores.", error);
+  }
+}
+
+function cleanNickname(value) {
+  const nickname = String(value || "")
+    .replace(/[^\w .'-]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 24);
+
+  return nickname || "Anonymous";
+}
+
+function leaderboardEntries(limit = 10) {
+  return [...leaderboardScores.entries()]
+    .map(([nickname, feeds]) => ({ nickname, feeds }))
+    .sort((left, right) => right.feeds - left.feeds || left.nickname.localeCompare(right.nickname))
+    .slice(0, limit);
+}
+
+function readJsonBody(request) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+
+    request.on("data", (chunk) => {
+      body += chunk;
+
+      if (body.length > 4096) {
+        reject(new Error("Request body is too large."));
+        request.destroy();
+      }
+    });
+
+    request.on("end", () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch (error) {
+        reject(new Error("Invalid JSON body."));
+      }
+    });
+
+    request.on("error", reject);
+  });
+}
+
 function sendFile(response, filePath) {
   const extension = path.extname(filePath).toLowerCase();
   const contentType = mimeTypes[extension] || "application/octet-stream";
@@ -395,6 +463,47 @@ function getStaticFilePath(pathname) {
 
 function handleRequest(request, response) {
   const url = new URL(request.url, `http://${request.headers.host}`);
+
+  if (url.pathname === "/api/leaderboard") {
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "Method not allowed." });
+      return;
+    }
+
+    sendJson(response, 200, {
+      leaderboard: leaderboardEntries(10)
+    }, {
+      "cache-control": "no-store"
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/feed") {
+    if (request.method !== "POST") {
+      sendJson(response, 405, { error: "Method not allowed." });
+      return;
+    }
+
+    readJsonBody(request)
+      .then((body) => {
+        const nickname = cleanNickname(body.nickname);
+        const amount = Math.max(1, Math.min(50, Number(body.amount) || 1));
+        const total = (leaderboardScores.get(nickname) || 0) + amount;
+        leaderboardScores.set(nickname, total);
+        saveLeaderboardScores();
+        sendJson(response, 200, {
+          nickname,
+          feeds: total,
+          leaderboard: leaderboardEntries(10)
+        }, {
+          "cache-control": "no-store"
+        });
+      })
+      .catch((error) => sendJson(response, 400, {
+        error: error.message
+      }));
+    return;
+  }
 
   if (url.pathname === "/api/breeds") {
     getCachedBreeds()

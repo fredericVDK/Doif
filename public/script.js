@@ -1,9 +1,19 @@
 const stage = document.querySelector(".stage");
+const feedBoard = document.querySelector(".feed-board");
+const feedCount = document.querySelector("#feedCount");
+const nicknameInput = document.querySelector("#nicknameInput");
+const leaderboardList = document.querySelector("#leaderboardList");
 
 const rand = (min, max) => Math.random() * (max - min) + min;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const approachDuration = 1650;
 const exitDuration = 920;
+const nicknameKey = "pigeon-crumbs:nickname";
+const feedCountKey = "pigeon-crumbs:feed-count";
+let localFeedCount = Number(localStorage.getItem(feedCountKey) || "0");
+
+nicknameInput.value = localStorage.getItem(nicknameKey) || "";
+feedCount.textContent = String(localFeedCount);
 
 function makeCrumb(x, y) {
   const crumb = document.createElement("span");
@@ -22,11 +32,18 @@ function makePigeon(startX, startY, targetX, targetY) {
   pigeon.style.top = `${startY}px`;
   pigeon.style.setProperty("--face", startX > targetX ? "-1" : "1");
   pigeon.innerHTML = `
+    <span class="shadow"></span>
+    <span class="tail"></span>
     <span class="body"></span>
+    <span class="wing"></span>
+    <span class="neck"></span>
     <span class="head"></span>
+    <span class="eye"></span>
     <span class="beak"></span>
     <span class="leg one"></span>
     <span class="leg two"></span>
+    <span class="toe one"></span>
+    <span class="toe two"></span>
   `;
   stage.appendChild(pigeon);
   return pigeon;
@@ -83,8 +100,92 @@ function movePigeon(pigeon, path, duration) {
   return animation;
 }
 
+function cleanNickname(value) {
+  return String(value || "")
+    .replace(/[^\w .'-]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 24) || "Anonymous";
+}
+
+function renderLeaderboard(entries = []) {
+  leaderboardList.innerHTML = entries.length
+    ? entries.map((entry) => `
+      <li>
+        <span>${escapeHtml(entry.nickname)}</span>
+        <strong>${Number(entry.feeds) || 0}</strong>
+      </li>
+    `).join("")
+    : "<li>No feeders yet.</li>";
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+async function loadLeaderboard() {
+  try {
+    const response = await fetch("/api/leaderboard");
+
+    if (!response.ok) throw new Error("Leaderboard unavailable.");
+
+    const data = await response.json();
+    renderLeaderboard(data.leaderboard || []);
+  } catch (error) {
+    renderLeaderboard(JSON.parse(localStorage.getItem("pigeon-crumbs:local-board") || "[]"));
+  }
+}
+
+function updateLocalBoard(nickname) {
+  const board = JSON.parse(localStorage.getItem("pigeon-crumbs:local-board") || "[]");
+  const existing = board.find((entry) => entry.nickname === nickname);
+
+  if (existing) {
+    existing.feeds += 1;
+  } else {
+    board.push({ nickname, feeds: 1 });
+  }
+
+  board.sort((left, right) => right.feeds - left.feeds || left.nickname.localeCompare(right.nickname));
+  localStorage.setItem("pigeon-crumbs:local-board", JSON.stringify(board.slice(0, 10)));
+  renderLeaderboard(board.slice(0, 10));
+}
+
+async function recordFeed() {
+  const nickname = cleanNickname(nicknameInput.value);
+  nicknameInput.value = nickname === "Anonymous" ? "" : nickname;
+  localStorage.setItem(nicknameKey, nicknameInput.value);
+
+  localFeedCount += 1;
+  localStorage.setItem(feedCountKey, String(localFeedCount));
+  feedCount.textContent = String(localFeedCount);
+  feedBoard.classList.add("has-score");
+
+  try {
+    const response = await fetch("/api/feed", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ nickname, amount: 1 })
+    });
+
+    if (!response.ok) throw new Error("Feed score unavailable.");
+
+    const data = await response.json();
+    renderLeaderboard(data.leaderboard || []);
+  } catch (error) {
+    updateLocalBoard(nickname);
+  }
+}
+
 function feedPigeons(event) {
+  if (event.target.closest("a, button, input, label, .feed-board")) return;
+
   document.body.classList.add("has-fed");
+  recordFeed();
 
   const x = event.clientX;
   const y = event.clientY;
@@ -128,3 +229,7 @@ function feedPigeons(event) {
 }
 
 stage.addEventListener("click", feedPigeons);
+nicknameInput.addEventListener("input", () => {
+  localStorage.setItem(nicknameKey, nicknameInput.value.slice(0, 24));
+});
+loadLeaderboard();
