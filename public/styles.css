@@ -37,6 +37,10 @@ input {
   font: inherit;
 }
 
+button {
+  cursor: pointer;
+}
+
 .stage {
   position: relative;
   min-height: 100vh;
@@ -179,6 +183,18 @@ input {
   line-height: 0.95;
 }
 
+.score-form {
+  display: grid;
+  gap: 6px;
+}
+
+.score-form p {
+  margin: 0;
+  color: rgba(32, 48, 45, 0.74);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
 .nickname-field {
   display: grid;
   gap: 6px;
@@ -192,6 +208,20 @@ input {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.78);
   color: #20302d;
+}
+
+.score-form button {
+  min-height: 38px;
+  border: 1px solid rgba(32, 48, 45, 0.18);
+  border-radius: 999px;
+  background: #41776d;
+  color: white;
+  font-weight: 800;
+}
+
+.score-form button:disabled {
+  opacity: 0.58;
+  cursor: wait;
 }
 
 .feed-board h2 {

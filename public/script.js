@@ -3,14 +3,15 @@ const feedBoard = document.querySelector(".feed-board");
 const feedCount = document.querySelector("#feedCount");
 const nicknameInput = document.querySelector("#nicknameInput");
 const leaderboardList = document.querySelector("#leaderboardList");
+const scoreForm = document.querySelector("#scoreForm");
+const submitScore = document.querySelector("#submitScore");
 
 const rand = (min, max) => Math.random() * (max - min) + min;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const approachDuration = 1650;
 const exitDuration = 920;
 const nicknameKey = "pigeon-crumbs:nickname";
-const feedCountKey = "pigeon-crumbs:feed-count";
-let localFeedCount = Number(localStorage.getItem(feedCountKey) || "0");
+let localFeedCount = 0;
 
 nicknameInput.value = localStorage.getItem(nicknameKey) || "";
 feedCount.textContent = String(localFeedCount);
@@ -140,14 +141,14 @@ async function loadLeaderboard() {
   }
 }
 
-function updateLocalBoard(nickname) {
+function updateLocalBoard(nickname, amount) {
   const board = JSON.parse(localStorage.getItem("pigeon-crumbs:local-board") || "[]");
   const existing = board.find((entry) => entry.nickname === nickname);
 
   if (existing) {
-    existing.feeds += 1;
+    existing.feeds += amount;
   } else {
-    board.push({ nickname, feeds: 1 });
+    board.push({ nickname, feeds: amount });
   }
 
   board.sort((left, right) => right.feeds - left.feeds || left.nickname.localeCompare(right.nickname));
@@ -155,21 +156,31 @@ function updateLocalBoard(nickname) {
   renderLeaderboard(board.slice(0, 10));
 }
 
-async function recordFeed() {
+function countFeed() {
+  localFeedCount += 1;
+  feedCount.textContent = String(localFeedCount);
+  feedBoard.classList.add("has-score");
+}
+
+async function submitCurrentScore(event) {
+  event.preventDefault();
+
+  if (!localFeedCount) {
+    nicknameInput.focus();
+    return;
+  }
+
   const nickname = cleanNickname(nicknameInput.value);
   nicknameInput.value = nickname === "Anonymous" ? "" : nickname;
   localStorage.setItem(nicknameKey, nicknameInput.value);
 
-  localFeedCount += 1;
-  localStorage.setItem(feedCountKey, String(localFeedCount));
-  feedCount.textContent = String(localFeedCount);
-  feedBoard.classList.add("has-score");
+  submitScore.disabled = true;
 
   try {
     const response = await fetch("/api/feed", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ nickname, amount: 1 })
+      body: JSON.stringify({ nickname, amount: localFeedCount })
     });
 
     if (!response.ok) throw new Error("Feed score unavailable.");
@@ -177,7 +188,11 @@ async function recordFeed() {
     const data = await response.json();
     renderLeaderboard(data.leaderboard || []);
   } catch (error) {
-    updateLocalBoard(nickname);
+    updateLocalBoard(nickname, localFeedCount);
+  } finally {
+    localFeedCount = 0;
+    feedCount.textContent = "0";
+    submitScore.disabled = false;
   }
 }
 
@@ -185,7 +200,7 @@ function feedPigeons(event) {
   if (event.target.closest("a, button, input, label, .feed-board")) return;
 
   document.body.classList.add("has-fed");
-  recordFeed();
+  countFeed();
 
   const x = event.clientX;
   const y = event.clientY;
@@ -229,6 +244,7 @@ function feedPigeons(event) {
 }
 
 stage.addEventListener("click", feedPigeons);
+scoreForm.addEventListener("submit", submitCurrentScore);
 nicknameInput.addEventListener("input", () => {
   localStorage.setItem(nicknameKey, nicknameInput.value.slice(0, 24));
 });
