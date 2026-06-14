@@ -487,7 +487,7 @@ function handleRequest(request, response) {
     readJsonBody(request)
       .then((body) => {
         const nickname = cleanNickname(body.nickname);
-        const amount = Math.max(1, Math.min(50, Number(body.amount) || 1));
+        const amount = Math.max(1, Math.floor(Number(body.amount) || 1));
         const total = (leaderboardScores.get(nickname) || 0) + amount;
         leaderboardScores.set(nickname, total);
         saveLeaderboardScores();
