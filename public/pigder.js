@@ -344,9 +344,9 @@ function beginDrag(event) {
   dragState = {
     pointerId: event.pointerId,
     startX: event.clientX,
-    startY: event.clientY
+    startY: event.clientY,
+    hasMoved: false
   };
-  swipeCard.classList.add("dragging");
   swipeCard.setPointerCapture(event.pointerId);
 }
 
@@ -355,6 +355,11 @@ function moveDrag(event) {
 
   const deltaX = event.clientX - dragState.startX;
   const deltaY = event.clientY - dragState.startY;
+
+  if (!dragState.hasMoved && Math.hypot(deltaX, deltaY) < 14) return;
+
+  dragState.hasMoved = true;
+  swipeCard.classList.add("dragging");
   updateCardMotion(deltaX, deltaY);
 }
 
@@ -362,10 +367,12 @@ function endDrag(event) {
   if (!dragState || dragState.pointerId !== event.pointerId) return;
 
   const deltaX = event.clientX - dragState.startX;
+  const deltaY = event.clientY - dragState.startY;
+  const hadMoved = dragState.hasMoved;
   dragState = null;
   swipeCard.classList.remove("dragging");
 
-  if (Math.abs(deltaX) > 120) {
+  if (hadMoved && Math.abs(deltaX) > 120 && Math.abs(deltaX) > Math.abs(deltaY) * 1.35) {
     swipe(deltaX > 0 ? "like" : "nope");
     return;
   }

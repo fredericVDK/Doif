@@ -49,6 +49,16 @@ button:hover {
   background: rgba(250, 251, 245, 0.86);
 }
 
+.admin-locked .admin-header,
+.admin-locked .admin-private {
+  display: none;
+}
+
+.admin-locked .admin-shell {
+  grid-template-columns: minmax(260px, 420px);
+  justify-content: center;
+}
+
 nav {
   display: flex;
   gap: 8px;

@@ -89,6 +89,34 @@ function loadDatabase() {
   return fallback;
 }
 
+function readDatabaseFile(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return null;
+
+    const fallback = defaultDatabase();
+    const saved = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    return {
+      ...fallback,
+      ...saved,
+      breedCache: {
+        ...fallback.breedCache,
+        ...(saved.breedCache || {})
+      }
+    };
+  } catch (error) {
+    console.warn(`Could not refresh database from ${filePath}.`, error);
+    return null;
+  }
+}
+
+function refreshDatabaseFromStorage() {
+  const fresh = readDatabaseFile(activeDataFile) || readDatabaseFile(DATA_FILE) || readDatabaseFile(FALLBACK_DATA_FILE);
+
+  if (fresh) {
+    appDb = fresh;
+  }
+}
+
 function saveDatabase() {
   for (const filePath of [activeDataFile, FALLBACK_DATA_FILE]) {
     try {
@@ -131,6 +159,8 @@ function makeId(prefix) {
 }
 
 function findOrCreateSession(request, response) {
+  refreshDatabaseFromStorage();
+
   const cookies = parseCookies(request);
   const candidate = cookies[SESSION_COOKIE];
   let session = appDb.sessions.find((entry) => entry.id === candidate);
@@ -538,6 +568,8 @@ function cleanNickname(value) {
 }
 
 function leaderboardEntries(limit = 10) {
+  refreshDatabaseFromStorage();
+
   return appDb.leaderboard
     .map((entry) => ({
       nickname: entry.nickname,
@@ -549,31 +581,41 @@ function leaderboardEntries(limit = 10) {
 }
 
 function addLeaderboardScore(nickname, amount, session, request) {
+  refreshDatabaseFromStorage();
+
+  const storedSession = appDb.sessions.find((entry) => entry.id === session.id) || session;
+
+  if (!appDb.sessions.some((entry) => entry.id === storedSession.id)) {
+    appDb.sessions.push(storedSession);
+  }
+
   const existing = appDb.leaderboard.find((entry) => entry.nickname.toLowerCase() === nickname.toLowerCase());
 
   if (existing) {
     existing.feeds += amount;
     existing.updatedAt = nowIso();
-    existing.sessionId = session.id;
+    existing.sessionId = storedSession.id;
   } else {
     appDb.leaderboard.push({
       nickname,
       feeds: amount,
-      sessionId: session.id,
+      sessionId: storedSession.id,
       createdAt: nowIso(),
       updatedAt: nowIso()
     });
   }
 
-  session.totalFeeds += amount;
-  session.submissions += 1;
-  session.updatedAt = nowIso();
+  storedSession.totalFeeds += amount;
+  storedSession.submissions += 1;
+  storedSession.updatedAt = nowIso();
   logEvent("feed_submitted", { nickname, amount, total: existing ? existing.feeds : amount }, request);
   saveDatabase();
   return appDb.leaderboard.find((entry) => entry.nickname.toLowerCase() === nickname.toLowerCase());
 }
 
 function deleteLeaderboardEntry(nickname) {
+  refreshDatabaseFromStorage();
+
   const before = appDb.leaderboard.length;
   appDb.leaderboard = appDb.leaderboard.filter((entry) => entry.nickname !== nickname);
   saveDatabase();
@@ -885,6 +927,7 @@ function handleRequest(request, response) {
 
     if (!requireAdmin(request, response)) return;
 
+    refreshDatabaseFromStorage();
     const removed = appDb.leaderboard.length;
     appDb.leaderboard = [];
     logEvent("admin_reset_leaderboard", { removed }, request);
@@ -906,6 +949,7 @@ function handleRequest(request, response) {
 
     if (!requireAdmin(request, response)) return;
 
+    refreshDatabaseFromStorage();
     sendJson(response, 200, {
       events: appDb.events.slice(0, 100),
       sessions: appDb.sessions.slice(-25)

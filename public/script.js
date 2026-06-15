@@ -5,6 +5,8 @@ const nicknameInput = document.querySelector("#nicknameInput");
 const leaderboardList = document.querySelector("#leaderboardList");
 const scoreForm = document.querySelector("#scoreForm");
 const submitScore = document.querySelector("#submitScore");
+const heroPigeon = document.querySelector("#heroPigeon");
+const jumpScare = document.querySelector("#jumpScare");
 
 const rand = (min, max) => Math.random() * (max - min) + min;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -13,6 +15,7 @@ const exitDuration = 920;
 const nicknameKey = "pigeon-crumbs:nickname";
 let localFeedCount = 0;
 let sessionId = "";
+let heroPigeonPresses = 0;
 
 nicknameInput.value = localStorage.getItem(nicknameKey) || "";
 feedCount.textContent = String(localFeedCount);
@@ -138,7 +141,7 @@ async function loadLeaderboard() {
     const data = await response.json();
     renderLeaderboard(data.leaderboard || []);
   } catch (error) {
-    renderLeaderboard(JSON.parse(localStorage.getItem("pigeon-crumbs:local-board") || "[]"));
+    leaderboardList.innerHTML = "<li>Leaderboard unavailable.</li>";
   }
 }
 
@@ -228,7 +231,7 @@ async function submitCurrentScore(event) {
       amount: localFeedCount
     });
   } catch (error) {
-    updateLocalBoard(nickname, localFeedCount);
+    leaderboardList.insertAdjacentHTML("afterbegin", "<li>Could not submit score. Try again.</li>");
   } finally {
     localFeedCount = 0;
     feedCount.textContent = "0";
@@ -287,7 +290,33 @@ function feedPigeons(event) {
   }, 1000);
 }
 
+function triggerJumpScare() {
+  jumpScare.classList.add("is-visible");
+  jumpScare.setAttribute("aria-hidden", "false");
+
+  window.setTimeout(() => {
+    jumpScare.classList.remove("is-visible");
+    jumpScare.setAttribute("aria-hidden", "true");
+  }, 1000);
+}
+
+function countHeroPigeonPress(event) {
+  event.stopPropagation();
+  heroPigeonPresses += 1;
+
+  if (heroPigeonPresses % 25 === 0) {
+    triggerJumpScare();
+  }
+}
+
 stage.addEventListener("click", feedPigeons);
+heroPigeon.addEventListener("click", countHeroPigeonPress);
+heroPigeon.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    countHeroPigeonPress(event);
+  }
+});
 scoreForm.addEventListener("submit", submitCurrentScore);
 nicknameInput.addEventListener("input", () => {
   localStorage.setItem(nicknameKey, nicknameInput.value.slice(0, 24));

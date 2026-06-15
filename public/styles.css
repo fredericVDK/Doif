@@ -123,6 +123,7 @@ button {
   display: block;
   object-fit: cover;
   object-position: center 42%;
+  cursor: pointer;
 }
 
 .photo-strip::after {
@@ -131,6 +132,32 @@ button {
   inset: 0;
   background: linear-gradient(180deg, transparent 62%, rgba(0, 0, 0, 0.18));
   pointer-events: none;
+}
+
+.jump-scare {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.9);
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.92);
+  transition: opacity 70ms ease, transform 70ms ease;
+}
+
+.jump-scare.is-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.jump-scare img {
+  width: min(96vw, 980px);
+  max-height: 96vh;
+  object-fit: contain;
+  filter: drop-shadow(0 0 28px rgba(255, 255, 255, 0.18));
 }
 
 .playfield {

@@ -892,6 +892,18 @@ h1 {
     overflow: visible;
   }
 
+  .battle-panel {
+    order: -3;
+  }
+
+  .daily-panel {
+    order: -2;
+  }
+
+  .main-column {
+    order: -1;
+  }
+
   .controls {
     gap: 8px;
   }

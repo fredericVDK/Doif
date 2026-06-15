@@ -74,7 +74,11 @@ async function loadAdminData() {
     renderLeaderboard(leaderboard.leaderboard || []);
     renderEvents(events.events || []);
     adminStatus.textContent = `Loaded. Storage: ${leaderboard.storage}`;
+    document.body.classList.remove("admin-locked");
   } catch (error) {
+    document.body.classList.add("admin-locked");
+    leaderboardTable.innerHTML = "";
+    eventList.innerHTML = "";
     adminStatus.textContent = error.message;
   }
 }
