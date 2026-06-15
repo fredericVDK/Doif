@@ -12,6 +12,7 @@ const approachDuration = 1650;
 const exitDuration = 920;
 const nicknameKey = "pigeon-crumbs:nickname";
 let localFeedCount = 0;
+let sessionId = "";
 
 nicknameInput.value = localStorage.getItem(nicknameKey) || "";
 feedCount.textContent = String(localFeedCount);
@@ -141,6 +142,41 @@ async function loadLeaderboard() {
   }
 }
 
+async function loadSession() {
+  try {
+    const response = await fetch("/api/session");
+
+    if (!response.ok) return;
+
+    const data = await response.json();
+    sessionId = data.sessionId || "";
+  } catch (error) {
+    sessionId = "";
+  }
+}
+
+function trackEvent(type, details = {}) {
+  const payload = JSON.stringify({
+    type,
+    details: {
+      ...details,
+      sessionId
+    }
+  });
+
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon("/api/events", new Blob([payload], { type: "application/json" }));
+    return;
+  }
+
+  fetch("/api/events", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: payload,
+    keepalive: true
+  }).catch(() => {});
+}
+
 function updateLocalBoard(nickname, amount) {
   const board = JSON.parse(localStorage.getItem("pigeon-crumbs:local-board") || "[]");
   const existing = board.find((entry) => entry.nickname === nickname);
@@ -187,6 +223,10 @@ async function submitCurrentScore(event) {
 
     const data = await response.json();
     renderLeaderboard(data.leaderboard || []);
+    trackEvent("score_submitted", {
+      nickname,
+      amount: localFeedCount
+    });
   } catch (error) {
     updateLocalBoard(nickname, localFeedCount);
   } finally {
@@ -201,6 +241,10 @@ function feedPigeons(event) {
 
   document.body.classList.add("has-fed");
   countFeed();
+
+  if (localFeedCount === 1 || localFeedCount % 25 === 0) {
+    trackEvent("crumb_fed", { count: localFeedCount });
+  }
 
   const x = event.clientX;
   const y = event.clientY;
@@ -249,3 +293,4 @@ nicknameInput.addEventListener("input", () => {
   localStorage.setItem(nicknameKey, nicknameInput.value.slice(0, 24));
 });
 loadLeaderboard();
+loadSession();

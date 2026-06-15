@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Admin dashboard for the Pigeon Crumbs leaderboard.">
+    <title>Pigeon Admin</title>
+    <link rel="stylesheet" href="admin.css">
+    <script>
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+  </head>
+  <body>
+    <header class="admin-header">
+      <nav>
+        <a href="index.html">Feed pigeons</a>
+        <a href="api-docs.html">API docs</a>
+      </nav>
+      <p class="eyebrow">Protected operations</p>
+      <h1>Admin Dashboard</h1>
+      <p>Moderate leaderboard entries, inspect recent events, and verify the backend storage path.</p>
+    </header>
+
+    <main class="admin-shell">
+      <section class="token-panel">
+        <h2>Admin token</h2>
+        <form id="tokenForm">
+          <input id="tokenInput" type="password" autocomplete="off" placeholder="x-admin-token">
+          <button type="submit">Load admin data</button>
+        </form>
+        <p class="hint">Local default is <code>dev-admin</code>. Set <code>ADMIN_TOKEN</code> on Vercel for production.</p>
+      </section>
+
+      <section>
+        <div class="section-title">
+          <h2>Leaderboard</h2>
+          <button id="resetButton" type="button">Reset leaderboard</button>
+        </div>
+        <div id="adminStatus" class="status">Enter a token to load admin data.</div>
+        <div id="leaderboardTable" class="table-list"></div>
+      </section>
+
+      <section>
+        <h2>Recent events</h2>
+        <div id="eventList" class="event-list"></div>
+      </section>
+    </main>
+
+    <script src="admin.js"></script>
+  </body>
+</html>

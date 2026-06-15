@@ -14,17 +14,27 @@ const MAX_INITIAL_BREEDS = 260;
 const PAGE_BATCH_SIZE = 35;
 const BREED_CACHE_TTL = 1000 * 60 * 60 * 6;
 const MISSING_SOURCE = "Not listed in source";
+const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, "data", "app-db.json");
+const FALLBACK_DATA_FILE = path.join(os.tmpdir(), "pigeon-crumbs-app-db.json");
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "dev-admin";
+const SESSION_COOKIE = "pigeon_session";
 let breedCache = {
   expiresAt: 0,
   data: null,
   pending: null
 };
-const LEADERBOARD_FILE = path.join(os.tmpdir(), "pigeon-crumbs-leaderboard.json");
-let leaderboardScores = loadLeaderboardScores();
+let activeDataFile = DATA_FILE;
+let appDb = loadDatabase();
+const rateLimitBuckets = new Map();
 const allowedRootFiles = new Set([
   "index.html",
   "styles.css",
   "script.js",
+  "admin.html",
+  "admin.css",
+  "admin.js",
+  "api-docs.html",
+  "api-docs.css",
   "pigeondex.html",
   "pigeondex.css",
   "pigeondex.js",
@@ -40,6 +50,156 @@ const mimeTypes = {
   ".png": "image/png",
   ".ico": "image/x-icon"
 };
+
+function defaultDatabase() {
+  return {
+    leaderboard: [],
+    sessions: [],
+    events: [],
+    breedCache: {
+      cachedAt: "",
+      expiresAt: 0,
+      data: []
+    }
+  };
+}
+
+function loadDatabase() {
+  const fallback = defaultDatabase();
+
+  for (const filePath of [DATA_FILE, FALLBACK_DATA_FILE]) {
+    try {
+      if (!fs.existsSync(filePath)) continue;
+
+      const saved = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      activeDataFile = filePath;
+      return {
+        ...fallback,
+        ...saved,
+        breedCache: {
+          ...fallback.breedCache,
+          ...(saved.breedCache || {})
+        }
+      };
+    } catch (error) {
+      console.warn(`Could not load database from ${filePath}.`, error);
+    }
+  }
+
+  return fallback;
+}
+
+function saveDatabase() {
+  for (const filePath of [activeDataFile, FALLBACK_DATA_FILE]) {
+    try {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      fs.writeFileSync(filePath, JSON.stringify(appDb, null, 2));
+      activeDataFile = filePath;
+      return;
+    } catch (error) {
+      console.warn(`Could not save database to ${filePath}.`, error);
+    }
+  }
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function requestIp(request) {
+  return (request.headers["x-forwarded-for"] || request.socket.remoteAddress || "unknown")
+    .toString()
+    .split(",")[0]
+    .trim();
+}
+
+function parseCookies(request) {
+  return Object.fromEntries(
+    (request.headers.cookie || "")
+      .split(";")
+      .map((cookie) => cookie.trim())
+      .filter(Boolean)
+      .map((cookie) => {
+        const [key, ...value] = cookie.split("=");
+        return [decodeURIComponent(key), decodeURIComponent(value.join("="))];
+      })
+  );
+}
+
+function makeId(prefix) {
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function findOrCreateSession(request, response) {
+  const cookies = parseCookies(request);
+  const candidate = cookies[SESSION_COOKIE];
+  let session = appDb.sessions.find((entry) => entry.id === candidate);
+
+  if (!session) {
+    session = {
+      id: makeId("ses"),
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+      ip: requestIp(request),
+      totalFeeds: 0,
+      submissions: 0
+    };
+    appDb.sessions.push(session);
+    saveDatabase();
+  }
+
+  if (response) {
+    response.setHeader("set-cookie", `${SESSION_COOKIE}=${encodeURIComponent(session.id)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000`);
+  }
+
+  return session;
+}
+
+function checkRateLimit(request, bucketName, limit, windowMs) {
+  const key = `${bucketName}:${requestIp(request)}:${parseCookies(request)[SESSION_COOKIE] || "no-session"}`;
+  const now = Date.now();
+  const bucket = rateLimitBuckets.get(key) || { resetAt: now + windowMs, count: 0 };
+
+  if (bucket.resetAt <= now) {
+    bucket.resetAt = now + windowMs;
+    bucket.count = 0;
+  }
+
+  bucket.count += 1;
+  rateLimitBuckets.set(key, bucket);
+
+  return {
+    allowed: bucket.count <= limit,
+    retryAfter: Math.ceil((bucket.resetAt - now) / 1000),
+    remaining: Math.max(0, limit - bucket.count)
+  };
+}
+
+function requireRateLimit(request, response, bucketName, limit, windowMs) {
+  const result = checkRateLimit(request, bucketName, limit, windowMs);
+
+  if (result.allowed) return true;
+
+  sendJson(response, 429, {
+    error: "Too many requests.",
+    retryAfter: result.retryAfter
+  }, {
+    "retry-after": String(result.retryAfter)
+  });
+  return false;
+}
+
+function logEvent(type, details = {}, request = null) {
+  appDb.events.unshift({
+    id: makeId("evt"),
+    type,
+    details,
+    ip: request ? requestIp(request) : "",
+    createdAt: nowIso()
+  });
+  appDb.events = appDb.events.slice(0, 250);
+  saveDatabase();
+}
 
 function apiUrl(base, params) {
   const url = new URL(base);
@@ -323,16 +483,32 @@ async function buildBreeds() {
 async function getCachedBreeds() {
   const now = Date.now();
 
+  if (appDb.breedCache.data?.length && appDb.breedCache.expiresAt > now) {
+    breedCache = {
+      data: appDb.breedCache.data,
+      expiresAt: appDb.breedCache.expiresAt,
+      pending: null
+    };
+    return appDb.breedCache.data;
+  }
+
   if (breedCache.data && breedCache.expiresAt > now) return breedCache.data;
   if (breedCache.pending) return breedCache.pending;
 
   breedCache.pending = buildBreeds()
     .then((data) => {
+      const expiresAt = Date.now() + BREED_CACHE_TTL;
       breedCache = {
         data,
-        expiresAt: Date.now() + BREED_CACHE_TTL,
+        expiresAt,
         pending: null
       };
+      appDb.breedCache = {
+        cachedAt: nowIso(),
+        expiresAt,
+        data
+      };
+      saveDatabase();
       return data;
     })
     .catch((error) => {
@@ -351,29 +527,6 @@ function sendJson(response, statusCode, data, headers = {}) {
   response.end(JSON.stringify(data));
 }
 
-function loadLeaderboardScores() {
-  try {
-    const saved = JSON.parse(fs.readFileSync(LEADERBOARD_FILE, "utf8"));
-
-    if (!Array.isArray(saved)) return new Map();
-
-    return new Map(saved.map((entry) => [entry.nickname, Number(entry.feeds) || 0]));
-  } catch (error) {
-    return new Map();
-  }
-}
-
-function saveLeaderboardScores() {
-  try {
-    fs.writeFileSync(LEADERBOARD_FILE, JSON.stringify([...leaderboardScores.entries()].map(([nickname, feeds]) => ({
-      nickname,
-      feeds
-    }))));
-  } catch (error) {
-    console.warn("Could not save leaderboard scores.", error);
-  }
-}
-
 function cleanNickname(value) {
   const nickname = String(value || "")
     .replace(/[^\w .'-]/g, "")
@@ -385,10 +538,46 @@ function cleanNickname(value) {
 }
 
 function leaderboardEntries(limit = 10) {
-  return [...leaderboardScores.entries()]
-    .map(([nickname, feeds]) => ({ nickname, feeds }))
+  return appDb.leaderboard
+    .map((entry) => ({
+      nickname: entry.nickname,
+      feeds: Number(entry.feeds) || 0,
+      updatedAt: entry.updatedAt || entry.createdAt || ""
+    }))
     .sort((left, right) => right.feeds - left.feeds || left.nickname.localeCompare(right.nickname))
     .slice(0, limit);
+}
+
+function addLeaderboardScore(nickname, amount, session, request) {
+  const existing = appDb.leaderboard.find((entry) => entry.nickname.toLowerCase() === nickname.toLowerCase());
+
+  if (existing) {
+    existing.feeds += amount;
+    existing.updatedAt = nowIso();
+    existing.sessionId = session.id;
+  } else {
+    appDb.leaderboard.push({
+      nickname,
+      feeds: amount,
+      sessionId: session.id,
+      createdAt: nowIso(),
+      updatedAt: nowIso()
+    });
+  }
+
+  session.totalFeeds += amount;
+  session.submissions += 1;
+  session.updatedAt = nowIso();
+  logEvent("feed_submitted", { nickname, amount, total: existing ? existing.feeds : amount }, request);
+  saveDatabase();
+  return appDb.leaderboard.find((entry) => entry.nickname.toLowerCase() === nickname.toLowerCase());
+}
+
+function deleteLeaderboardEntry(nickname) {
+  const before = appDb.leaderboard.length;
+  appDb.leaderboard = appDb.leaderboard.filter((entry) => entry.nickname !== nickname);
+  saveDatabase();
+  return appDb.leaderboard.length !== before;
 }
 
 function readJsonBody(request) {
@@ -414,6 +603,45 @@ function readJsonBody(request) {
 
     request.on("error", reject);
   });
+}
+
+function apiDocs() {
+  return {
+    name: "Pigeon Crumbs API",
+    version: "1.0.0",
+    auth: {
+      admin: "Admin endpoints require the x-admin-token header. Set ADMIN_TOKEN in production."
+    },
+    endpoints: [
+      { method: "GET", path: "/api/session", description: "Create or return the current anonymous session." },
+      { method: "GET", path: "/api/leaderboard", description: "Return the top pigeon feeders." },
+      { method: "POST", path: "/api/feed", description: "Submit a completed feeding round.", body: { nickname: "string", amount: "number" } },
+      { method: "GET", path: "/api/breeds", description: "Return cached PigeonDex breed data from Wikimedia/Wikidata." },
+      { method: "GET", path: "/api/breeds/:id", description: "Return one cached breed by id." },
+      { method: "POST", path: "/api/events", description: "Record a lightweight product analytics event.", body: { type: "string", details: "object" } },
+      { method: "GET", path: "/api/admin/leaderboard", description: "Admin: list full leaderboard." },
+      { method: "DELETE", path: "/api/admin/leaderboard/:nickname", description: "Admin: delete one leaderboard entry." },
+      { method: "POST", path: "/api/admin/reset-leaderboard", description: "Admin: clear leaderboard." },
+      { method: "GET", path: "/api/admin/events", description: "Admin: view recent backend events." }
+    ]
+  };
+}
+
+function isAdminRequest(request) {
+  return request.headers["x-admin-token"] === ADMIN_TOKEN;
+}
+
+function requireAdmin(request, response) {
+  if (isAdminRequest(request)) return true;
+
+  sendJson(response, 401, {
+    error: "Admin token required."
+  });
+  return false;
+}
+
+function methodNotAllowed(response) {
+  sendJson(response, 405, { error: "Method not allowed." });
 }
 
 function sendFile(response, filePath) {
@@ -464,11 +692,43 @@ function getStaticFilePath(pathname) {
 function handleRequest(request, response) {
   const url = new URL(request.url, `http://${request.headers.host}`);
 
-  if (url.pathname === "/api/leaderboard") {
+  if (url.pathname === "/api/docs") {
     if (request.method !== "GET") {
-      sendJson(response, 405, { error: "Method not allowed." });
+      methodNotAllowed(response);
       return;
     }
+
+    sendJson(response, 200, apiDocs(), {
+      "cache-control": "no-store"
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/session") {
+    if (request.method !== "GET") {
+      methodNotAllowed(response);
+      return;
+    }
+
+    const session = findOrCreateSession(request, response);
+    sendJson(response, 200, {
+      sessionId: session.id,
+      createdAt: session.createdAt,
+      totalFeeds: session.totalFeeds,
+      submissions: session.submissions
+    }, {
+      "cache-control": "no-store"
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/leaderboard") {
+    if (request.method !== "GET") {
+      methodNotAllowed(response);
+      return;
+    }
+
+    if (!requireRateLimit(request, response, "leaderboard", 120, 60_000)) return;
 
     sendJson(response, 200, {
       leaderboard: leaderboardEntries(10)
@@ -480,20 +740,23 @@ function handleRequest(request, response) {
 
   if (url.pathname === "/api/feed") {
     if (request.method !== "POST") {
-      sendJson(response, 405, { error: "Method not allowed." });
+      methodNotAllowed(response);
       return;
     }
+
+    if (!requireRateLimit(request, response, "feed", 30, 60_000)) return;
+
+    const session = findOrCreateSession(request, response);
 
     readJsonBody(request)
       .then((body) => {
         const nickname = cleanNickname(body.nickname);
         const amount = Math.max(1, Math.floor(Number(body.amount) || 1));
-        const total = (leaderboardScores.get(nickname) || 0) + amount;
-        leaderboardScores.set(nickname, total);
-        saveLeaderboardScores();
+        const updated = addLeaderboardScore(nickname, amount, session, request);
         sendJson(response, 200, {
           nickname,
-          feeds: total,
+          feeds: updated.feeds,
+          sessionId: session.id,
           leaderboard: leaderboardEntries(10)
         }, {
           "cache-control": "no-store"
@@ -505,10 +768,37 @@ function handleRequest(request, response) {
     return;
   }
 
+  if (url.pathname === "/api/events") {
+    if (request.method !== "POST") {
+      methodNotAllowed(response);
+      return;
+    }
+
+    if (!requireRateLimit(request, response, "events", 120, 60_000)) return;
+
+    readJsonBody(request)
+      .then((body) => {
+        const type = String(body.type || "unknown").replace(/[^\w:-]/g, "").slice(0, 48) || "unknown";
+        const details = typeof body.details === "object" && body.details ? body.details : {};
+        logEvent(type, details, request);
+        sendJson(response, 202, { ok: true });
+      })
+      .catch((error) => sendJson(response, 400, { error: error.message }));
+    return;
+  }
+
   if (url.pathname === "/api/breeds") {
+    if (request.method !== "GET") {
+      methodNotAllowed(response);
+      return;
+    }
+
+    if (!requireRateLimit(request, response, "breeds", 60, 60_000)) return;
+
     getCachedBreeds()
       .then((breeds) => sendJson(response, 200, {
-        cachedAt: new Date(Date.now() - BREED_CACHE_TTL + Math.max(0, breedCache.expiresAt - Date.now())).toISOString(),
+        cachedAt: appDb.breedCache.cachedAt || new Date(Date.now() - BREED_CACHE_TTL + Math.max(0, breedCache.expiresAt - Date.now())).toISOString(),
+        expiresAt: new Date(breedCache.expiresAt || appDb.breedCache.expiresAt).toISOString(),
         count: breeds.length,
         breeds
       }, {
@@ -518,6 +808,110 @@ function handleRequest(request, response) {
         error: "Could not load pigeon breed cache.",
         message: error.message
       }));
+    return;
+  }
+
+  if (url.pathname.startsWith("/api/breeds/")) {
+    if (request.method !== "GET") {
+      methodNotAllowed(response);
+      return;
+    }
+
+    if (!requireRateLimit(request, response, "breed-detail", 120, 60_000)) return;
+
+    const id = decodeURIComponent(url.pathname.replace("/api/breeds/", ""));
+    getCachedBreeds()
+      .then((breeds) => {
+        const breed = breeds.find((entry) => entry.id === id);
+
+        if (!breed) {
+          sendJson(response, 404, { error: "Breed not found." });
+          return;
+        }
+
+        sendJson(response, 200, { breed }, {
+          "cache-control": "s-maxage=21600, stale-while-revalidate=86400"
+        });
+      })
+      .catch((error) => sendJson(response, 502, {
+        error: "Could not load pigeon breed cache.",
+        message: error.message
+      }));
+    return;
+  }
+
+  if (url.pathname === "/api/admin/leaderboard") {
+    if (request.method !== "GET") {
+      methodNotAllowed(response);
+      return;
+    }
+
+    if (!requireAdmin(request, response)) return;
+
+    sendJson(response, 200, {
+      leaderboard: leaderboardEntries(100),
+      storage: activeDataFile
+    }, {
+      "cache-control": "no-store"
+    });
+    return;
+  }
+
+  if (url.pathname.startsWith("/api/admin/leaderboard/")) {
+    if (request.method !== "DELETE") {
+      methodNotAllowed(response);
+      return;
+    }
+
+    if (!requireAdmin(request, response)) return;
+
+    const nickname = decodeURIComponent(url.pathname.replace("/api/admin/leaderboard/", ""));
+    const deleted = deleteLeaderboardEntry(nickname);
+    logEvent("admin_deleted_leaderboard_entry", { nickname, deleted }, request);
+    sendJson(response, deleted ? 200 : 404, {
+      deleted,
+      leaderboard: leaderboardEntries(100)
+    }, {
+      "cache-control": "no-store"
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/admin/reset-leaderboard") {
+    if (request.method !== "POST") {
+      methodNotAllowed(response);
+      return;
+    }
+
+    if (!requireAdmin(request, response)) return;
+
+    const removed = appDb.leaderboard.length;
+    appDb.leaderboard = [];
+    logEvent("admin_reset_leaderboard", { removed }, request);
+    saveDatabase();
+    sendJson(response, 200, {
+      removed,
+      leaderboard: []
+    }, {
+      "cache-control": "no-store"
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/admin/events") {
+    if (request.method !== "GET") {
+      methodNotAllowed(response);
+      return;
+    }
+
+    if (!requireAdmin(request, response)) return;
+
+    sendJson(response, 200, {
+      events: appDb.events.slice(0, 100),
+      sessions: appDb.sessions.slice(-25)
+    }, {
+      "cache-control": "no-store"
+    });
     return;
   }
 

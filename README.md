@@ -1,21 +1,74 @@
 # Pigeon Crumbs
 
-A tiny static website: click anywhere on the screen to drop a breadcrumb, then one small pigeon arrives after one second to eat it.
+A playful pigeon website with a real Node.js backend behind it. Visitors can feed pigeons, submit round scores to a leaderboard, explore PigeonDex breed data, swipe through Pigder, and inspect backend/admin tooling.
 
 Made with Codex.
 
-## PigeonDex
+## Backend Features
 
-Open `public/pigeondex.html` to search pigeon breeds, favorite breeds, compare two breeds, or jump to a random pigeon. Breed data is loaded in the browser from live Wikipedia, Wikidata, and Wikimedia image API calls.
+- Anonymous session cookie for visitors.
+- Persistent JSON storage for local/self-hosted data in `data/app-db.json`.
+- Leaderboard API with nickname sanitization and full round-score submission.
+- Rate limiting for public API routes.
+- Protected admin endpoints using the `x-admin-token` header.
+- Server-side Wikimedia/Wikidata cache for PigeonDex breed data.
+- Lightweight product event logging for feed milestones and score submissions.
+- API docs at `public/api-docs.html` and `/api/docs`.
+- Backend tests using Node's built-in test runner.
 
-## Deploy on Vercel
+## Pages
 
-Import this folder as a Vercel project. Vercel will serve the site from the `public/` folder, so no custom build command is needed.
+- `public/index.html` - feed pigeons, submit leaderboard scores.
+- `public/pigeondex.html` - search, compare, detail pages, daily pigeon, battle arena.
+- `public/pigder.html` - swipe through image-backed pigeon breeds.
+- `public/admin.html` - protected admin dashboard for moderation and event inspection.
+- `public/api-docs.html` - recruiter-friendly API documentation.
 
-## Run locally
+## API Overview
+
+- `GET /api/session`
+- `GET /api/leaderboard`
+- `POST /api/feed`
+- `GET /api/breeds`
+- `GET /api/breeds/:id`
+- `POST /api/events`
+- `GET /api/admin/leaderboard`
+- `DELETE /api/admin/leaderboard/:nickname`
+- `POST /api/admin/reset-leaderboard`
+- `GET /api/admin/events`
+
+## Run Locally
 
 ```bash
 npm start
 ```
 
-Then open `http://localhost:3000`. The local Node.js server serves the same `public/` folder.
+Then open `http://localhost:3000`.
+
+For the admin dashboard, the local default token is:
+
+```text
+dev-admin
+```
+
+Set a real token for production:
+
+```bash
+ADMIN_TOKEN=your-secret-token npm start
+```
+
+## Test
+
+```bash
+npm test
+```
+
+## Deploy On Vercel
+
+Import this folder as a Vercel project and set:
+
+```text
+ADMIN_TOKEN=your-secret-token
+```
+
+The JSON storage works best for local/self-hosted demos. On serverless Vercel, file storage can be temporary between cold starts. For a production-grade leaderboard, the storage layer is ready to be swapped for Vercel KV, Supabase, Neon Postgres, or another managed database.

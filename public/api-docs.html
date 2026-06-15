@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Backend API documentation for Pigeon Crumbs.">
+    <title>Pigeon Crumbs API Docs</title>
+    <link rel="stylesheet" href="api-docs.css">
+    <script>
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+  </head>
+  <body>
+    <header class="docs-header">
+      <nav>
+        <a href="index.html">Feed pigeons</a>
+        <a href="pigeondex.html">PigeonDex</a>
+        <a href="admin.html">Admin</a>
+      </nav>
+      <p class="eyebrow">Backend portfolio surface</p>
+      <h1>API Docs</h1>
+      <p>The site exposes a small Node.js API for sessions, leaderboard rounds, PigeonDex caching, admin moderation, and event logging.</p>
+    </header>
+
+    <main class="docs-shell">
+      <section>
+        <h2>Endpoints</h2>
+        <div id="docsList" class="endpoint-list">Loading API docs...</div>
+      </section>
+      <section>
+        <h2>Backend Highlights</h2>
+        <ul class="highlight-list">
+          <li>File-backed JSON storage for local/self-hosted persistence.</li>
+          <li>Anonymous session cookie for score submissions.</li>
+          <li>Rate limiting on public write and read-heavy API routes.</li>
+          <li>Protected admin routes using the <code>x-admin-token</code> header.</li>
+          <li>Server-side Wikimedia/Wikidata cache for PigeonDex data.</li>
+        </ul>
+      </section>
+    </main>
+
+    <script>
+      fetch("/api/docs")
+        .then((response) => response.json())
+        .then((docs) => {
+          document.querySelector("#docsList").innerHTML = docs.endpoints.map((endpoint) => `
+            <article class="endpoint-card">
+              <strong>${endpoint.method} ${endpoint.path}</strong>
+              <p>${endpoint.description}</p>
+              ${endpoint.body ? `<code>${JSON.stringify(endpoint.body)}</code>` : ""}
+            </article>
+          `).join("");
+        })
+        .catch(() => {
+          document.querySelector("#docsList").textContent = "Could not load API docs.";
+        });
+    </script>
+  </body>
+</html>
