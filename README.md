@@ -12,6 +12,8 @@ Made with Codex.
 - Rate limiting for public API routes.
 - Protected admin endpoints using the `x-admin-token` header.
 - Server-side Wikimedia/Wikidata cache for PigeonDex breed data.
+- Missing breed images are searched through Wikipedia/Commons before falling back to the default image.
+- Optional Airtable-backed PigeonDex breed cache.
 - Lightweight product event logging for feed milestones and score submissions.
 - API docs at `public/api-docs.html` and `/api/docs`.
 - Backend tests using Node's built-in test runner.
@@ -57,6 +59,44 @@ Set a real token for production:
 ADMIN_TOKEN=your-secret-token npm start
 ```
 
+## Optional Airtable Breed Cache
+
+To keep PigeonDex breeds in Airtable, create a base with two tables.
+
+`Breeds` fields:
+
+- `Id`
+- `Name`
+- `Origin`
+- `Size`
+- `Flight`
+- `Temperament`
+- `Fact`
+- `History`
+- `Image`
+- `HasRealImage`
+- `ImageSource`
+- `SourceUrl`
+- `WikidataId`
+
+`Cache` fields:
+
+- `Key`
+- `CachedAt`
+- `ExpiresAt`
+- `Count`
+
+Then set these environment variables:
+
+```text
+AIRTABLE_API_KEY=your-airtable-token
+AIRTABLE_BASE_ID=your-base-id
+AIRTABLE_BREEDS_TABLE=Breeds
+AIRTABLE_CACHE_TABLE=Cache
+```
+
+When Airtable is configured, the server loads stored pigeon breeds from Airtable first. If the Airtable cache is empty or expired, it refreshes from Wikimedia/Wikidata, searches for missing images through Wikipedia/Commons, and writes the refreshed data back to Airtable.
+
 ## Test
 
 ```bash
@@ -69,6 +109,8 @@ Import this folder as a Vercel project and set:
 
 ```text
 ADMIN_TOKEN=your-secret-token
+AIRTABLE_API_KEY=your-airtable-token
+AIRTABLE_BASE_ID=your-base-id
 ```
 
 The JSON storage works best for local/self-hosted demos. On serverless Vercel, file storage can be temporary between cold starts. For a production-grade leaderboard, the storage layer is ready to be swapped for Vercel KV, Supabase, Neon Postgres, or another managed database.

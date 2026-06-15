@@ -123,7 +123,25 @@ button {
   display: block;
   object-fit: cover;
   object-position: center 42%;
-  cursor: pointer;
+}
+
+.pigeon-hotspot {
+  position: absolute;
+  left: 28%;
+  top: 3%;
+  width: 48%;
+  height: 96%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  clip-path: ellipse(38% 49% at 50% 50%);
+  cursor: inherit;
+}
+
+.pigeon-hotspot:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.72);
+  outline-offset: 3px;
 }
 
 .photo-strip::after {
@@ -517,6 +535,13 @@ body.has-fed .hint {
   .site-nav {
     top: 14px;
     right: 14px;
+  }
+
+  .pigeon-hotspot {
+    left: 16%;
+    top: 5%;
+    width: 68%;
+    height: 92%;
   }
 
   .feed-board {

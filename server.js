@@ -7,17 +7,23 @@ const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "public");
 const WIKI_API = "https://en.wikipedia.org/w/api.php";
 const WIKIDATA_API = "https://www.wikidata.org/w/api.php";
+const COMMONS_API = "https://commons.wikimedia.org/w/api.php";
 const COMMONS_FILE = "https://commons.wikimedia.org/wiki/Special:FilePath/";
 const FALLBACK_IMAGE = "assets/pigeon-hero-wide.png";
 const LIST_PAGE = "List_of_pigeon_breeds";
 const MAX_INITIAL_BREEDS = 260;
 const PAGE_BATCH_SIZE = 35;
 const BREED_CACHE_TTL = 1000 * 60 * 60 * 6;
+const BREED_CACHE_VERSION = 2;
 const MISSING_SOURCE = "Not listed in source";
 const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, "data", "app-db.json");
 const FALLBACK_DATA_FILE = path.join(os.tmpdir(), "pigeon-crumbs-app-db.json");
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "dev-admin";
 const SESSION_COOKIE = "pigeon_session";
+const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY || "";
+const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID || "";
+const AIRTABLE_BREEDS_TABLE = process.env.AIRTABLE_BREEDS_TABLE || "Breeds";
+const AIRTABLE_CACHE_TABLE = process.env.AIRTABLE_CACHE_TABLE || "Cache";
 let breedCache = {
   expiresAt: 0,
   data: null,
@@ -57,6 +63,7 @@ function defaultDatabase() {
     sessions: [],
     events: [],
     breedCache: {
+      version: 0,
       cachedAt: "",
       expiresAt: 0,
       data: []
@@ -479,6 +486,105 @@ function sortBreeds(breeds) {
   });
 }
 
+async function findWikipediaSearchImage(title) {
+  try {
+    const data = await fetchJson(
+      apiUrl(WIKI_API, {
+        action: "query",
+        generator: "search",
+        gsrsearch: `${title} pigeon`,
+        gsrlimit: "1",
+        prop: "pageimages",
+        piprop: "thumbnail|original",
+        pithumbsize: "900",
+        format: "json",
+        origin: "*"
+      })
+    );
+    const page = Object.values(data.query?.pages || {})[0];
+
+    return page?.thumbnail?.source || page?.original?.source || "";
+  } catch (error) {
+    console.warn(`Could not find Wikipedia search image for ${title}`, error);
+    return "";
+  }
+}
+
+async function findCommonsImageByQuery(title, query) {
+  try {
+    const data = await fetchJson(
+      apiUrl(COMMONS_API, {
+        action: "query",
+        generator: "search",
+        gsrsearch: query,
+        gsrnamespace: "6",
+        gsrlimit: "1",
+        prop: "imageinfo",
+        iiprop: "url",
+        iiurlwidth: "900",
+        format: "json",
+        origin: "*"
+      })
+    );
+    const page = Object.values(data.query?.pages || {})[0];
+
+    return page?.imageinfo?.[0]?.thumburl || page?.imageinfo?.[0]?.url || "";
+  } catch (error) {
+    console.warn(`Could not find Commons image for ${title}`, error);
+    return "";
+  }
+}
+
+async function findCommonsImage(title) {
+  const queries = [
+    `${title} pigeon`,
+    `"${title}"`,
+    `${title} breed`
+  ];
+
+  for (const query of queries) {
+    const image = await findCommonsImageByQuery(title, query);
+
+    if (image) return image;
+  }
+
+  return "";
+}
+
+async function mapLimit(items, limit, worker) {
+  const results = [];
+  let nextIndex = 0;
+
+  async function runNext() {
+    const index = nextIndex;
+    nextIndex += 1;
+
+    if (index >= items.length) return;
+
+    results[index] = await worker(items[index], index);
+    await runNext();
+  }
+
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, runNext));
+  return results;
+}
+
+async function enrichBreedImages(breeds) {
+  const missingImages = breeds.filter((breed) => !hasSpecificImage(breed));
+
+  await mapLimit(missingImages, 5, async (breed) => {
+    const image = await findWikipediaSearchImage(breed.name) || await findCommonsImage(breed.name);
+
+    if (image) {
+      breed.image = image;
+      breed.hasRealImage = true;
+      breed.imageSource = "search";
+    }
+  });
+
+  return sortBreeds(breeds);
+}
+
 async function buildBreeds() {
   const titles = await fetchBreedTitles();
   const pages = await fetchWikipediaPages(titles);
@@ -486,11 +592,12 @@ async function buildBreeds() {
   const allOriginIds = [...wdDetails.values()].flatMap((detail) => detail.originIds);
   const originLabels = await fetchLabels(allOriginIds);
 
-  return sortBreeds(
+  const breeds = sortBreeds(
     pages.map((page) => {
       const wdDetail = wdDetails.get(page.wikidataId);
       const origin = wdDetail?.originIds?.map((id) => originLabels.get(id)).filter(Boolean).join(", ");
       const text = `${page.title}. ${page.extract}`;
+      const image = imageFor(page, wdDetail);
 
       return {
         id: titleToId(page.title),
@@ -501,19 +608,38 @@ async function buildBreeds() {
         temperament: inferTemperament(text),
         fact: extractFact(page.extract),
         history: page.extract || extractFact(page.extract),
-        image: imageFor(page, wdDetail),
-        hasRealImage: Boolean(imageFor(page, wdDetail) && imageFor(page, wdDetail) !== FALLBACK_IMAGE),
+        image,
+        hasRealImage: Boolean(image && image !== FALLBACK_IMAGE),
+        imageSource: image && image !== FALLBACK_IMAGE ? "api" : "fallback",
         sourceUrl: page.sourceUrl,
         wikidataId: page.wikidataId
       };
     })
   );
+
+  return enrichBreedImages(breeds);
 }
 
 async function getCachedBreeds() {
   const now = Date.now();
 
-  if (appDb.breedCache.data?.length && appDb.breedCache.expiresAt > now) {
+  if (breedCache.data && breedCache.expiresAt > now) return breedCache.data;
+  if (breedCache.pending) return breedCache.pending;
+
+  const airtableCache = await readAirtableBreedCache();
+
+  if (airtableCache?.data?.length) {
+    breedCache = {
+      data: airtableCache.data,
+      expiresAt: airtableCache.expiresAt,
+      pending: null
+    };
+    appDb.breedCache = airtableCache;
+    saveDatabase();
+    return airtableCache.data;
+  }
+
+  if (appDb.breedCache.version === BREED_CACHE_VERSION && appDb.breedCache.data?.length && appDb.breedCache.expiresAt > now) {
     breedCache = {
       data: appDb.breedCache.data,
       expiresAt: appDb.breedCache.expiresAt,
@@ -521,9 +647,6 @@ async function getCachedBreeds() {
     };
     return appDb.breedCache.data;
   }
-
-  if (breedCache.data && breedCache.expiresAt > now) return breedCache.data;
-  if (breedCache.pending) return breedCache.pending;
 
   breedCache.pending = buildBreeds()
     .then((data) => {
@@ -534,11 +657,13 @@ async function getCachedBreeds() {
         pending: null
       };
       appDb.breedCache = {
+        version: BREED_CACHE_VERSION,
         cachedAt: nowIso(),
         expiresAt,
         data
       };
       saveDatabase();
+      writeAirtableBreedCache(data, expiresAt);
       return data;
     })
     .catch((error) => {
@@ -555,6 +680,180 @@ function sendJson(response, statusCode, data, headers = {}) {
     ...headers
   });
   response.end(JSON.stringify(data));
+}
+
+function airtableConfigured() {
+  return Boolean(AIRTABLE_API_KEY && AIRTABLE_BASE_ID);
+}
+
+function airtableTableUrl(tableName, params = {}) {
+  const url = new URL(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tableName)}`);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") url.searchParams.set(key, value);
+  });
+  return url;
+}
+
+async function airtableRequest(tableName, options = {}, params = {}) {
+  const response = await fetch(airtableTableUrl(tableName, params), {
+    ...options,
+    headers: {
+      authorization: `Bearer ${AIRTABLE_API_KEY}`,
+      "content-type": "application/json",
+      ...(options.headers || {})
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Airtable request failed: ${response.status}`);
+  }
+
+  return response.status === 204 ? {} : response.json();
+}
+
+async function listAirtableRecords(tableName, params = {}) {
+  const records = [];
+  let offset = "";
+
+  do {
+    const data = await airtableRequest(tableName, {}, {
+      pageSize: "100",
+      ...params,
+      offset
+    });
+    records.push(...(data.records || []));
+    offset = data.offset || "";
+  } while (offset);
+
+  return records;
+}
+
+function airtableBreedFromRecord(record) {
+  const fields = record.fields || {};
+
+  return {
+    airtableRecordId: record.id,
+    id: fields.Id || "",
+    name: fields.Name || "",
+    origin: fields.Origin || MISSING_SOURCE,
+    size: fields.Size || MISSING_SOURCE,
+    flight: fields.Flight || MISSING_SOURCE,
+    temperament: fields.Temperament || MISSING_SOURCE,
+    fact: fields.Fact || "",
+    history: fields.History || fields.Fact || "",
+    image: fields.Image || FALLBACK_IMAGE,
+    hasRealImage: Boolean(fields.HasRealImage),
+    imageSource: fields.ImageSource || "",
+    sourceUrl: fields.SourceUrl || "",
+    wikidataId: fields.WikidataId || ""
+  };
+}
+
+function airtableFieldsFromBreed(breed) {
+  return {
+    Id: breed.id,
+    Name: breed.name,
+    Origin: breed.origin,
+    Size: breed.size,
+    Flight: breed.flight,
+    Temperament: breed.temperament,
+    Fact: breed.fact,
+    History: breed.history,
+    Image: breed.image,
+    HasRealImage: Boolean(breed.hasRealImage),
+    ImageSource: breed.imageSource || "",
+    SourceUrl: breed.sourceUrl,
+    WikidataId: breed.wikidataId || ""
+  };
+}
+
+async function readAirtableBreedCache() {
+  if (!airtableConfigured()) return null;
+
+  try {
+    const [metaRecord] = await listAirtableRecords(AIRTABLE_CACHE_TABLE, {
+      filterByFormula: "{Key}='breeds'"
+    });
+
+    if (!metaRecord || Number(metaRecord.fields?.ExpiresAt || 0) <= Date.now()) return null;
+
+    const records = await listAirtableRecords(AIRTABLE_BREEDS_TABLE);
+    const breeds = records
+      .map(airtableBreedFromRecord)
+      .filter((breed) => breed.id && breed.name);
+
+    return breeds.length ? {
+      cachedAt: metaRecord.fields?.CachedAt || "",
+      expiresAt: Number(metaRecord.fields?.ExpiresAt || 0),
+      data: sortBreeds(breeds)
+    } : null;
+  } catch (error) {
+    console.warn("Could not read Airtable breed cache.", error);
+    return null;
+  }
+}
+
+async function writeAirtableBreedCache(breeds, expiresAt) {
+  if (!airtableConfigured()) return;
+
+  try {
+    const existingRecords = await listAirtableRecords(AIRTABLE_BREEDS_TABLE);
+    const existingById = new Map(existingRecords.map((record) => [record.fields?.Id, record.id]));
+
+    for (const batch of chunks(breeds, 10)) {
+      const creates = [];
+      const updates = [];
+
+      batch.forEach((breed) => {
+        const recordId = existingById.get(breed.id);
+        const fields = airtableFieldsFromBreed(breed);
+
+        if (recordId) {
+          updates.push({ id: recordId, fields });
+        } else {
+          creates.push({ fields });
+        }
+      });
+
+      if (creates.length) {
+        await airtableRequest(AIRTABLE_BREEDS_TABLE, {
+          method: "POST",
+          body: JSON.stringify({ records: creates, typecast: true })
+        });
+      }
+
+      if (updates.length) {
+        await airtableRequest(AIRTABLE_BREEDS_TABLE, {
+          method: "PATCH",
+          body: JSON.stringify({ records: updates, typecast: true })
+        });
+      }
+    }
+
+    const [metaRecord] = await listAirtableRecords(AIRTABLE_CACHE_TABLE, {
+      filterByFormula: "{Key}='breeds'"
+    });
+    const metaFields = {
+      Key: "breeds",
+      CachedAt: nowIso(),
+      ExpiresAt: expiresAt,
+      Count: breeds.length
+    };
+
+    if (metaRecord) {
+      await airtableRequest(AIRTABLE_CACHE_TABLE, {
+        method: "PATCH",
+        body: JSON.stringify({ records: [{ id: metaRecord.id, fields: metaFields }], typecast: true })
+      });
+    } else {
+      await airtableRequest(AIRTABLE_CACHE_TABLE, {
+        method: "POST",
+        body: JSON.stringify({ records: [{ fields: metaFields }], typecast: true })
+      });
+    }
+  } catch (error) {
+    console.warn("Could not write Airtable breed cache.", error);
+  }
 }
 
 function cleanNickname(value) {
@@ -651,6 +950,14 @@ function apiDocs() {
   return {
     name: "Pigeon Crumbs API",
     version: "1.0.0",
+    features: [
+      "Anonymous sessions",
+      "Rate-limited leaderboard submissions",
+      "Server-side PigeonDex cache",
+      "Optional Airtable breed storage",
+      "Wikipedia/Commons image enrichment for missing breed photos",
+      "Protected admin moderation"
+    ],
     auth: {
       admin: "Admin endpoints require the x-admin-token header. Set ADMIN_TOKEN in production."
     },
