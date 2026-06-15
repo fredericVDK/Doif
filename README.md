@@ -82,7 +82,7 @@ To keep PigeonDex breeds in Airtable, create a base with two tables.
 `Cache` fields:
 
 - `Key`
-- `CachedAt`
+- `CacheAt`
 - `ExpiresAt`
 - `Count`
 
@@ -93,6 +93,8 @@ AIRTABLE_API_KEY=your-airtable-token
 AIRTABLE_BASE_ID=your-base-id
 AIRTABLE_BREEDS_TABLE=Breeds
 AIRTABLE_CACHE_TABLE=Cache
+AIRTABLE_WIKIDATA_FIELD=WikiDataId
+AIRTABLE_CACHED_AT_FIELD=CacheAt
 ```
 
 When Airtable is configured, the server loads stored pigeon breeds from Airtable first. If the Airtable cache is empty or expired, it refreshes from Wikimedia/Wikidata, searches for missing images through Wikipedia/Commons, and writes the refreshed data back to Airtable.

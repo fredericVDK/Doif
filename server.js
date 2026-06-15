@@ -24,6 +24,8 @@ const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY || "";
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID || "";
 const AIRTABLE_BREEDS_TABLE = process.env.AIRTABLE_BREEDS_TABLE || "Breeds";
 const AIRTABLE_CACHE_TABLE = process.env.AIRTABLE_CACHE_TABLE || "Cache";
+const AIRTABLE_WIKIDATA_FIELD = process.env.AIRTABLE_WIKIDATA_FIELD || "WikiDataId";
+const AIRTABLE_CACHED_AT_FIELD = process.env.AIRTABLE_CACHED_AT_FIELD || "CacheAt";
 let breedCache = {
   expiresAt: 0,
   data: null,
@@ -745,7 +747,7 @@ function airtableBreedFromRecord(record) {
     hasRealImage: Boolean(fields.HasRealImage),
     imageSource: fields.ImageSource || "",
     sourceUrl: fields.SourceUrl || "",
-    wikidataId: fields.WikidataId || ""
+    wikidataId: fields[AIRTABLE_WIKIDATA_FIELD] || fields.WikidataId || fields.WikiDataId || ""
   };
 }
 
@@ -763,7 +765,7 @@ function airtableFieldsFromBreed(breed) {
     HasRealImage: Boolean(breed.hasRealImage),
     ImageSource: breed.imageSource || "",
     SourceUrl: breed.sourceUrl,
-    WikidataId: breed.wikidataId || ""
+    [AIRTABLE_WIKIDATA_FIELD]: breed.wikidataId || ""
   };
 }
 
@@ -783,7 +785,7 @@ async function readAirtableBreedCache() {
       .filter((breed) => breed.id && breed.name);
 
     return breeds.length ? {
-      cachedAt: metaRecord.fields?.CachedAt || "",
+      cachedAt: metaRecord.fields?.[AIRTABLE_CACHED_AT_FIELD] || metaRecord.fields?.CachedAt || metaRecord.fields?.CacheAt || "",
       expiresAt: Number(metaRecord.fields?.ExpiresAt || 0),
       data: sortBreeds(breeds)
     } : null;
@@ -798,7 +800,11 @@ async function writeAirtableBreedCache(breeds, expiresAt) {
 
   try {
     const existingRecords = await listAirtableRecords(AIRTABLE_BREEDS_TABLE);
-    const existingById = new Map(existingRecords.map((record) => [record.fields?.Id, record.id]));
+    const existingById = new Map(
+      existingRecords
+        .filter((record) => record.fields?.Id)
+        .map((record) => [record.fields.Id, record.id])
+    );
 
     for (const batch of chunks(breeds, 10)) {
       const creates = [];
@@ -835,7 +841,7 @@ async function writeAirtableBreedCache(breeds, expiresAt) {
     });
     const metaFields = {
       Key: "breeds",
-      CachedAt: nowIso(),
+      [AIRTABLE_CACHED_AT_FIELD]: nowIso(),
       ExpiresAt: expiresAt,
       Count: breeds.length
     };
