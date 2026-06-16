@@ -449,6 +449,10 @@ function hasSpecificImage(breed) {
   return breed.image && breed.image !== FALLBACK_IMAGE;
 }
 
+function photoBreeds() {
+  return breeds.filter(hasSpecificImage);
+}
+
 function sortBreeds() {
   breeds.sort((a, b) => {
     const imageDifference = Number(hasSpecificImage(b)) - Number(hasSpecificImage(a));
@@ -475,9 +479,11 @@ function seededIndex(seed, max) {
 }
 
 function dailyBreed() {
-  if (!breeds.length) return null;
+  const pool = photoBreeds();
 
-  return breeds[seededIndex(todayKey(), breeds.length)];
+  if (!pool.length) return null;
+
+  return pool[seededIndex(todayKey(), pool.length)];
 }
 
 function loadHistory(key) {
@@ -713,7 +719,7 @@ async function loadBreeds() {
 function visibleBreeds() {
   const query = searchInput.value.trim().toLowerCase();
 
-  return breeds.filter((breed) => {
+  return photoBreeds().filter((breed) => {
     const matchesSearch = [breed.name, breed.origin, breed.size, breed.flight, breed.temperament, breed.fact]
       .join(" ")
       .toLowerCase()
@@ -726,18 +732,15 @@ function visibleBreeds() {
 function render() {
   const visible = visibleBreeds();
   const missing = countMissing();
+  const hiddenWithoutPhotos = breeds.length - photoBreeds().length;
   const sortedVisible = [...visible].sort((a, b) => {
-    const imageDifference = Number(hasSpecificImage(b)) - Number(hasSpecificImage(a));
-
-    if (imageDifference) return imageDifference;
-
     return a.name.localeCompare(b.name);
   });
   breedGrid.innerHTML = sortedVisible.map(renderCard).join("");
   setStatus(
     visible.length
-      ? `Showing ${visible.length} of ${breeds.length} live API breeds. Extra searches tried for ${missing.fields} unavailable fields and ${missing.images} images.`
-      : "No breeds match that search."
+      ? `Showing ${visible.length} photographed breeds. ${hiddenWithoutPhotos} breeds without photos are hidden. Extra searches tried for ${missing.fields} unavailable fields and ${missing.images} images.`
+      : `No photographed breeds match that search. ${hiddenWithoutPhotos} breeds without photos are hidden.`
   );
   renderCompare();
   renderBattle();
@@ -796,6 +799,7 @@ function relatedBreeds(breed) {
 
   return breeds
     .filter((candidate) => candidate.id !== breed.id)
+    .filter(hasSpecificImage)
     .map((candidate) => {
       const candidateTraits = detailTraits(candidate).map((trait) => trait.toLowerCase());
       const score = candidateTraits.filter((trait) => traits.has(trait)).length;
@@ -849,7 +853,7 @@ function renderDetail() {
 
   const breed = breeds.find((item) => item.id === selectedDetailId);
 
-  if (!breed) {
+  if (!breed || !hasSpecificImage(breed)) {
     detailPanel.innerHTML = "";
     detailPanel.hidden = true;
     return;
@@ -1111,7 +1115,7 @@ function scrollToTop() {
 }
 
 function selectDifferentRandom() {
-  const pool = breeds.filter((breed) => breed.id !== lastRandomId);
+  const pool = photoBreeds().filter((breed) => breed.id !== lastRandomId);
 
   if (!pool.length) return null;
 
