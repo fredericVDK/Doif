@@ -201,6 +201,12 @@ function countFeed() {
   feedBoard.classList.add("has-score");
 }
 
+function pointHitsHeroPigeon(x, y) {
+  const rect = heroPigeon.getBoundingClientRect();
+
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
+
 async function submitCurrentScore(event) {
   event.preventDefault();
 
@@ -239,8 +245,8 @@ async function submitCurrentScore(event) {
   }
 }
 
-function feedPigeons(event) {
-  if (event.target.closest("a, button, input, label, .feed-board")) return;
+function feedPigeons(event, options = {}) {
+  if (!options.allowInteractiveTarget && event.target.closest("a, button, input, label, .feed-board")) return;
 
   document.body.classList.add("has-fed");
   countFeed();
@@ -249,8 +255,23 @@ function feedPigeons(event) {
     trackEvent("crumb_fed", { count: localFeedCount });
   }
 
-  const x = event.clientX;
-  const y = event.clientY;
+  const fallbackRect = event.target.getBoundingClientRect();
+  const x = Number.isFinite(event.clientX) && event.clientX > 0
+    ? event.clientX
+    : fallbackRect.left + fallbackRect.width / 2;
+  const y = Number.isFinite(event.clientY) && event.clientY > 0
+    ? event.clientY
+    : fallbackRect.top + fallbackRect.height / 2;
+  const countsForEasterEgg = options.countHeroPress || pointHitsHeroPigeon(x, y);
+
+  if (countsForEasterEgg) {
+    heroPigeonPresses += 1;
+
+    if (heroPigeonPresses % 25 === 0) {
+      triggerJumpScare();
+    }
+  }
+
   const crumb = makeCrumb(x, y);
 
   window.setTimeout(() => {
@@ -291,22 +312,19 @@ function feedPigeons(event) {
 }
 
 function triggerJumpScare() {
+  jumpScare.dataset.triggered = String(Number(jumpScare.dataset.triggered || "0") + 1);
   jumpScare.classList.add("is-visible");
   jumpScare.setAttribute("aria-hidden", "false");
 
   window.setTimeout(() => {
     jumpScare.classList.remove("is-visible");
     jumpScare.setAttribute("aria-hidden", "true");
-  }, 1000);
+  }, 1200);
 }
 
 function countHeroPigeonPress(event) {
   event.stopPropagation();
-  heroPigeonPresses += 1;
-
-  if (heroPigeonPresses % 25 === 0) {
-    triggerJumpScare();
-  }
+  feedPigeons(event, { allowInteractiveTarget: true, countHeroPress: true });
 }
 
 stage.addEventListener("click", feedPigeons);

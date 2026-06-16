@@ -24,7 +24,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -119,7 +120,7 @@ h1 {
   top: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto auto;
+  grid-template-columns: minmax(220px, 1fr) auto auto auto;
   gap: 12px;
   align-items: end;
   padding: 12px 0;
@@ -129,7 +130,15 @@ h1 {
     url("assets/pavement-floor.png") center top / cover fixed;
 }
 
-.search-box {
+.filter-grid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.search-box,
+.filter-box {
   display: grid;
   gap: 7px;
   color: var(--muted);
@@ -138,7 +147,8 @@ h1 {
   text-transform: uppercase;
 }
 
-.search-box input {
+.search-box input,
+.filter-box select {
   width: 100%;
   min-height: 46px;
   padding: 0 15px;
@@ -147,6 +157,15 @@ h1 {
   background: rgba(255, 255, 255, 0.86);
   color: var(--ink);
   font-size: 16px;
+}
+
+.filter-box select {
+  appearance: none;
+  padding-right: 36px;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--accent-dark) 50%) right 18px center / 7px 7px no-repeat,
+    linear-gradient(135deg, var(--accent-dark) 50%, transparent 50%) right 13px center / 7px 7px no-repeat,
+    rgba(255, 255, 255, 0.86);
 }
 
 .compare-panel,
@@ -1006,13 +1025,19 @@ h1 {
     padding: 10px;
   }
 
+  .filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
   .controls button {
     min-height: 38px;
     padding: 0 10px;
     font-size: 13px;
   }
 
-  .search-box input {
+  .search-box input,
+  .filter-box select {
     min-height: 42px;
   }
 
@@ -1083,6 +1108,7 @@ h1 {
   }
 
   .facts,
+  .filter-grid,
   .rating-grid {
     grid-template-columns: 1fr;
   }

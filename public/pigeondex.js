@@ -15,8 +15,13 @@ const MISSING_SOURCE = "Not listed in source";
 const breedGrid = document.querySelector("#breedGrid");
 const statusEl = document.querySelector("#status");
 const searchInput = document.querySelector("#searchInput");
+const originFilter = document.querySelector("#originFilter");
+const sizeFilter = document.querySelector("#sizeFilter");
+const temperamentFilter = document.querySelector("#temperamentFilter");
+const flightFilter = document.querySelector("#flightFilter");
 const randomButton = document.querySelector("#randomButton");
 const favoritesButton = document.querySelector("#favoritesButton");
+const clearFiltersButton = document.querySelector("#clearFiltersButton");
 const fightButton = document.querySelector("#fightButton");
 const compareGrid = document.querySelector("#compareGrid");
 const dailyPigeon = document.querySelector("#dailyPigeon");
@@ -453,6 +458,68 @@ function photoBreeds() {
   return breeds.filter(hasSpecificImage);
 }
 
+function originValues(origin) {
+  if (!origin || origin === MISSING_SOURCE) return [];
+
+  return String(origin)
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function uniqueSorted(values) {
+  return [...new Set(values.filter((value) => value && value !== MISSING_SOURCE))]
+    .sort((left, right) => left.localeCompare(right));
+}
+
+function optionHtml(value, selectedValue) {
+  return `<option value="${escapeHtml(value)}" ${value === selectedValue ? "selected" : ""}>${escapeHtml(value)}</option>`;
+}
+
+function populateFilter(select, values, allLabel) {
+  const previousValue = select.value;
+  const options = uniqueSorted(values);
+  const nextValue = options.includes(previousValue) ? previousValue : "";
+
+  select.innerHTML = [
+    `<option value="">${escapeHtml(allLabel)}</option>`,
+    ...options.map((value) => optionHtml(value, nextValue))
+  ].join("");
+  select.value = nextValue;
+}
+
+function populateFilters() {
+  const pool = photoBreeds();
+
+  populateFilter(originFilter, pool.flatMap((breed) => originValues(breed.origin)), "All origins");
+  populateFilter(sizeFilter, pool.map((breed) => breed.size), "All sizes");
+  populateFilter(temperamentFilter, pool.map((breed) => breed.temperament), "All temperaments");
+  populateFilter(flightFilter, pool.map((breed) => breed.flight), "All flight types");
+}
+
+function currentFilters() {
+  return {
+    origin: originFilter.value,
+    size: sizeFilter.value,
+    temperament: temperamentFilter.value,
+    flight: flightFilter.value
+  };
+}
+
+function resetListFilters({ includeSearch = true, includeFavorites = true } = {}) {
+  if (includeSearch) searchInput.value = "";
+
+  originFilter.value = "";
+  sizeFilter.value = "";
+  temperamentFilter.value = "";
+  flightFilter.value = "";
+
+  if (includeFavorites) {
+    showFavoritesOnly = false;
+    favoritesButton.setAttribute("aria-pressed", "false");
+  }
+}
+
 function sortBreeds() {
   breeds.sort((a, b) => {
     const imageDifference = Number(hasSpecificImage(b)) - Number(hasSpecificImage(a));
@@ -653,6 +720,7 @@ async function loadBreeds() {
     try {
       breeds = await fetchCachedBreeds();
       sortBreeds();
+      populateFilters();
       setStatus(`Loaded ${breeds.length} pigeon breeds from the Vercel API cache.`);
       render();
       renderDaily();
@@ -693,6 +761,7 @@ async function loadBreeds() {
       })
       .sort((a, b) => a.name.localeCompare(b.name));
     sortBreeds();
+    populateFilters();
 
     render();
     renderDaily();
@@ -701,6 +770,7 @@ async function loadBreeds() {
     enrichMissingData()
       .then(() => {
         sortBreeds();
+        populateFilters();
         render();
         renderDaily();
         renderBattle();
@@ -718,14 +788,20 @@ async function loadBreeds() {
 
 function visibleBreeds() {
   const query = searchInput.value.trim().toLowerCase();
+  const filters = currentFilters();
 
   return photoBreeds().filter((breed) => {
     const matchesSearch = [breed.name, breed.origin, breed.size, breed.flight, breed.temperament, breed.fact]
       .join(" ")
       .toLowerCase()
       .includes(query);
+    const matchesOrigin = !filters.origin || originValues(breed.origin).includes(filters.origin);
+    const matchesSize = !filters.size || breed.size === filters.size;
+    const matchesTemperament = !filters.temperament || breed.temperament === filters.temperament;
+    const matchesFlight = !filters.flight || breed.flight === filters.flight;
     const matchesFavorite = !showFavoritesOnly || favorites.has(breed.id);
-    return matchesSearch && matchesFavorite;
+
+    return matchesSearch && matchesOrigin && matchesSize && matchesTemperament && matchesFlight && matchesFavorite;
   });
 }
 
@@ -1298,6 +1374,9 @@ window.addEventListener("popstate", () => {
 });
 
 searchInput.addEventListener("input", render);
+[originFilter, sizeFilter, temperamentFilter, flightFilter].forEach((filter) => {
+  filter.addEventListener("change", render);
+});
 
 favoritesButton.addEventListener("click", () => {
   scrollToTop();
@@ -1310,15 +1389,20 @@ fightButton.addEventListener("click", fightBattle);
 
 rateUpload.addEventListener("change", handleRateUpload);
 
+clearFiltersButton.addEventListener("click", () => {
+  scrollToTop();
+  resetListFilters();
+  render();
+});
+
 randomButton.addEventListener("click", () => {
   scrollToTop();
   const breed = selectDifferentRandom();
 
   if (!breed) return;
 
+  resetListFilters({ includeSearch: false });
   searchInput.value = breed.name;
-  showFavoritesOnly = false;
-  favoritesButton.setAttribute("aria-pressed", "false");
   render();
   document.querySelector(`[data-compare="${CSS.escape(breed.id)}"]`)?.scrollIntoView({
     behavior: "smooth",

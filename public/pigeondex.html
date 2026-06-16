@@ -51,8 +51,35 @@
             <span>Search breeds</span>
             <input id="searchInput" type="search" autocomplete="off" placeholder="Fantail, tumbler, pouter...">
           </label>
+          <div class="filter-grid" aria-label="Breed filters">
+            <label class="filter-box">
+              <span>Origin</span>
+              <select id="originFilter">
+                <option value="">All origins</option>
+              </select>
+            </label>
+            <label class="filter-box">
+              <span>Size</span>
+              <select id="sizeFilter">
+                <option value="">All sizes</option>
+              </select>
+            </label>
+            <label class="filter-box">
+              <span>Temperament</span>
+              <select id="temperamentFilter">
+                <option value="">All temperaments</option>
+              </select>
+            </label>
+            <label class="filter-box">
+              <span>Flight</span>
+              <select id="flightFilter">
+                <option value="">All flight types</option>
+              </select>
+            </label>
+          </div>
           <button id="randomButton" type="button">Random pigeon</button>
           <button id="favoritesButton" type="button" aria-pressed="false">Favorites</button>
+          <button id="clearFiltersButton" type="button">Clear filters</button>
         </section>
 
         <section id="detailPanel" class="detail-panel" aria-label="Breed detail"></section>
