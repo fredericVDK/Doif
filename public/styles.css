@@ -25,6 +25,7 @@ body {
 body {
   margin: 0;
   overflow: hidden;
+  overflow-x: hidden;
   background: var(--pavement);
   color: #26302d;
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='42' height='42' viewBox='0 0 42 42'%3E%3Cpath d='M7 23c0-8 7-14 15-14 7 0 13 5 13 12v9c0 3-2 5-5 5H12c-3 0-5-2-5-5v-7Z' fill='%23d99b47' stroke='%23875a22' stroke-width='2.5'/%3E%3Cpath d='M11 22c1-5 6-9 11-9 5 0 9 3 10 8' fill='none' stroke='%23f1c66d' stroke-width='3' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='25' r='1.6' fill='%23875a22'/%3E%3Ccircle cx='23' cy='21' r='1.4' fill='%23875a22'/%3E%3Ccircle cx='29' cy='27' r='1.5' fill='%23875a22'/%3E%3Cpath d='M9 30h24' stroke='%23b8752d' stroke-width='2' stroke-linecap='round' opacity='.55'/%3E%3C/svg%3E") 12 22, pointer;
@@ -44,6 +45,7 @@ button {
 .stage {
   position: relative;
   min-height: 100vh;
+  min-height: 100svh;
   background:
     linear-gradient(rgba(238, 241, 232, 0.42), rgba(134, 144, 132, 0.3)),
     url("assets/pavement-floor.png") center top / cover;
@@ -525,16 +527,35 @@ body.has-fed .hint {
 @media (max-width: 640px) {
   :root {
     --photo-height: clamp(260px, 42vh, 430px);
-    --intro-height: 240px;
+    --intro-height: 224px;
+  }
+
+  body {
+    overflow-y: auto;
+  }
+
+  .stage {
+    padding-bottom: 188px;
   }
 
   .intro {
-    padding: 62px 18px 24px;
+    padding: 86px 16px 22px;
   }
 
   .site-nav {
-    top: 14px;
-    right: 14px;
+    top: 12px;
+    right: 10px;
+    left: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+  }
+
+  .site-nav a {
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
   }
 
   .pigeon-hotspot {
@@ -547,27 +568,68 @@ body.has-fed .hint {
   .feed-board {
     left: 10px;
     right: 10px;
-    bottom: 10px;
-    grid-template-columns: 82px 1fr;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 8px;
     width: auto;
-    padding: 10px;
+    max-height: min(48svh, 292px);
+    padding: 9px;
+    overflow: auto;
+    border-radius: 9px;
   }
 
   .feed-counter {
-    min-width: 76px;
-    min-height: 76px;
+    min-width: 68px;
+    min-height: 68px;
+  }
+
+  .feed-counter span,
+  .nickname-field span {
+    font-size: 10px;
+    letter-spacing: 0.06em;
   }
 
   .feed-counter strong {
-    font-size: 34px;
+    font-size: 30px;
+  }
+
+  .score-form {
+    gap: 5px;
+    min-width: 0;
+  }
+
+  .score-form p {
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .nickname-field {
+    gap: 4px;
+  }
+
+  .nickname-field input,
+  .score-form button {
+    min-height: 34px;
+  }
+
+  .feed-board h2 {
+    margin-top: 0;
+    font-size: 14px;
   }
 
   .leaderboard-list {
-    max-height: 96px;
+    gap: 4px;
+    max-height: 78px;
+  }
+
+  .leaderboard-list li {
+    min-height: 28px;
+    padding: 4px 7px;
+    font-size: 12px;
   }
 
   .intro h1 {
-    font-size: 34px;
+    font-size: clamp(27px, 8vw, 34px);
   }
 
   .intro p {
@@ -577,5 +639,27 @@ body.has-fed .hint {
 
   .tiny-pigeon {
     scale: 0.82;
+  }
+}
+
+@media (max-width: 390px) {
+  .stage {
+    padding-bottom: 218px;
+  }
+
+  .feed-board {
+    grid-template-columns: 1fr;
+    max-height: min(52svh, 320px);
+  }
+
+  .feed-counter {
+    display: flex;
+    min-height: 50px;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .leaderboard-list {
+    max-height: 70px;
   }
 }

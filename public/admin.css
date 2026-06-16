@@ -190,13 +190,52 @@ code {
 }
 
 @media (max-width: 760px) {
+  .admin-header {
+    padding: 16px 14px 18px;
+  }
+
+  nav {
+    justify-content: flex-start;
+    margin-bottom: 18px;
+  }
+
+  nav a {
+    min-height: 34px;
+    padding: 0 11px;
+    font-size: 13px;
+  }
+
+  .eyebrow {
+    margin-top: 0;
+  }
+
+  h1 {
+    font-size: clamp(38px, 14vw, 58px);
+  }
+
   .admin-shell,
   .table-row {
     grid-template-columns: 1fr;
   }
 
+  .admin-shell {
+    padding: 14px 10px 34px;
+  }
+
+  .admin-locked .admin-shell {
+    grid-template-columns: 1fr;
+  }
+
+  section {
+    padding: 14px;
+  }
+
   .section-title {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .table-row button {
+    width: 100%;
   }
 }
