@@ -31,6 +31,7 @@ const battleCommentary = document.querySelector("#battleCommentary");
 
 let breeds = [];
 let favorites = new Set(JSON.parse(localStorage.getItem(favoritesKey) || "[]"));
+let expandedCardIds = new Set();
 let compareIds = [];
 let battleIds = [];
 let showFavoritesOnly = false;
@@ -746,9 +747,11 @@ function render() {
 function renderCard(breed) {
   const isFavorite = favorites.has(breed.id);
   const isCompared = compareIds.includes(breed.id);
+  const isExpanded = expandedCardIds.has(breed.id);
+  const hasLongSummary = breed.fact.length > 165;
 
   return `
-    <article class="breed-card">
+    <article class="breed-card ${isExpanded ? "is-expanded" : ""}">
       <button class="image-button" type="button" data-detail="${escapeHtml(breed.id)}" aria-label="Open ${escapeHtml(breed.name)} details">
         <img class="breed-image" src="${escapeHtml(breed.image)}" alt="${escapeHtml(breed.name)}" loading="lazy">
       </button>
@@ -763,7 +766,10 @@ function renderCard(breed) {
           ${renderFact("Flight", breed.flight)}
           ${renderFact("Temperament", breed.temperament)}
         </div>
-        <p class="summary">${escapeHtml(breed.fact)}</p>
+        <div class="summary-wrap">
+          <p class="summary ${hasLongSummary && !isExpanded ? "is-clamped" : ""}">${escapeHtml(breed.fact)}</p>
+          ${hasLongSummary ? `<button class="summary-toggle" type="button" data-more="${escapeHtml(breed.id)}" aria-expanded="${isExpanded}">${isExpanded ? "Less" : "More"}</button>` : ""}
+        </div>
         <div class="card-actions">
           <button type="button" data-compare="${escapeHtml(breed.id)}">${isCompared ? "Remove compare" : "Compare"}</button>
           <button type="button" data-battle="${escapeHtml(breed.id)}">${battleIds.includes(breed.id) ? "Ready" : "Prepare for battle"}</button>
@@ -908,6 +914,16 @@ function renderFact(label, value) {
       <strong>${escapeHtml(displayValue(label, value))}</strong>
     </div>
   `;
+}
+
+function toggleCardSummary(id) {
+  if (expandedCardIds.has(id)) {
+    expandedCardIds.delete(id);
+  } else {
+    expandedCardIds.add(id);
+  }
+
+  render();
 }
 
 function displayValue(label, value) {
@@ -1255,7 +1271,9 @@ breedGrid.addEventListener("click", (event) => {
   const compareButton = event.target.closest("[data-compare]");
   const battleButton = event.target.closest("[data-battle]");
   const detailButton = event.target.closest("[data-detail]");
+  const moreButton = event.target.closest("[data-more]");
 
+  if (moreButton) toggleCardSummary(moreButton.dataset.more);
   if (favoriteButton) toggleFavorite(favoriteButton.dataset.favorite);
   if (compareButton) toggleCompare(compareButton.dataset.compare);
   if (battleButton) toggleBattle(battleButton.dataset.battle);
