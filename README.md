@@ -1,4 +1,4 @@
-# Pigeon Crumbs
+# Pigeon Crumbs (https://doif-eta.vercel.app/)
 
 A playful pigeon website with a real Node.js backend behind it. Visitors can feed pigeons, submit round scores to a leaderboard, explore PigeonDex breed data, swipe through Pigder, and inspect backend/admin tooling.
 
