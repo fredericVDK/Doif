@@ -6,7 +6,6 @@ const test = require("node:test");
 
 process.env.DATA_FILE = path.join(os.tmpdir(), `pigeon-test-${Date.now()}-${Math.random()}.json`);
 process.env.ADMIN_TOKEN = "test-admin";
-process.env.OPENAI_API_KEY = "";
 process.env.AIRTABLE_API_KEY = "";
 process.env.AIRTABLE_BASE_ID = "";
 
@@ -117,7 +116,7 @@ test("api docs expose documented endpoints", async () => {
   }
 });
 
-test("drawing endpoint stores review-pending submissions without AI key", async () => {
+test("drawing endpoint stores and lists submissions", async () => {
   const server = await createTestServer();
   const imageDataUrl = "data:image/png;base64,iVBORw0KGgo=";
 
@@ -134,7 +133,7 @@ test("drawing endpoint stores review-pending submissions without AI key", async 
 
     assert.equal(submitted.response.status, 201);
     assert.equal(submitted.data.drawing.artist, "Sketch Friend");
-    assert.equal(submitted.data.drawing.status, "needs_review");
+    assert.equal(submitted.data.drawing.status, "approved");
 
     const listed = await requestJson(server.baseUrl, "/api/drawings");
     assert.equal(listed.response.status, 200);

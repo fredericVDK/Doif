@@ -27,8 +27,6 @@ const AIRTABLE_CACHE_TABLE = process.env.AIRTABLE_CACHE_TABLE || "Cache";
 const AIRTABLE_DRAWINGS_TABLE = process.env.AIRTABLE_DRAWINGS_TABLE || "Drawings";
 const AIRTABLE_WIKIDATA_FIELD = process.env.AIRTABLE_WIKIDATA_FIELD || "WikiDataId";
 const AIRTABLE_CACHED_AT_FIELD = process.env.AIRTABLE_CACHED_AT_FIELD || "CacheAt";
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
-const OPENAI_VISION_MODEL = process.env.OPENAI_VISION_MODEL || "gpt-4.1-mini";
 let breedCache = {
   expiresAt: 0,
   data: null,
@@ -909,7 +907,7 @@ function parseImageDataUrl(value) {
 
 function drawingStatusLabel(status) {
   const labels = {
-    approved: "AI approved",
+    approved: "Published",
     needs_review: "Needs review",
     rejected: "Rejected"
   };
@@ -937,83 +935,6 @@ function drawingEntries(limit = 60) {
     .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
     .slice(0, limit)
     .map(publicDrawing);
-}
-
-function extractJsonObject(text) {
-  const match = String(text || "").match(/\{[\s\S]*\}/);
-
-  if (!match) return null;
-
-  try {
-    return JSON.parse(match[0]);
-  } catch (error) {
-    return null;
-  }
-}
-
-async function validateDrawingWithAi(imageDataUrl) {
-  if (!OPENAI_API_KEY) {
-    return {
-      configured: false,
-      isDrawing: null,
-      isPigeon: null,
-      confidence: 0,
-      feedback: "AI validation is not configured yet, so this drawing is waiting for review."
-    };
-  }
-
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${OPENAI_API_KEY}`,
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({
-      model: OPENAI_VISION_MODEL,
-      input: [{
-        role: "user",
-        content: [
-          {
-            type: "input_text",
-            text: [
-              "You moderate a community pigeon drawing gallery.",
-              "Return only JSON with keys isDrawing boolean, isPigeon boolean, confidence number 0-1, feedback string.",
-              "Approve drawings, sketches, paintings, cartoons, or digital art of pigeons.",
-              "Reject real bird photos, unrelated drawings, screenshots, and non-pigeon animals."
-            ].join(" ")
-          },
-          {
-            type: "input_image",
-            image_url: imageDataUrl,
-            detail: "low"
-          }
-        ]
-      }]
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error(`AI validation failed: ${response.status}`);
-  }
-
-  const data = await response.json();
-  const outputText = data.output_text || (data.output || [])
-    .flatMap((item) => item.content || [])
-    .map((item) => item.text || "")
-    .join(" ");
-  const parsed = extractJsonObject(outputText);
-
-  if (!parsed) {
-    throw new Error("AI validation returned an unreadable response.");
-  }
-
-  return {
-    configured: true,
-    isDrawing: Boolean(parsed.isDrawing),
-    isPigeon: Boolean(parsed.isPigeon),
-    confidence: Math.max(0, Math.min(1, Number(parsed.confidence) || 0)),
-    feedback: String(parsed.feedback || "AI checked this submission.").slice(0, 220)
-  };
 }
 
 async function writeAirtableDrawing(drawing) {
@@ -1052,10 +973,13 @@ async function addDrawingSubmission(body, request) {
   const title = cleanDrawingText(body.title, "Untitled pigeon", 48);
   const imageDataUrl = String(body.imageDataUrl || "");
   const image = parseImageDataUrl(imageDataUrl);
-  const ai = await validateDrawingWithAi(imageDataUrl);
-  const status = ai.configured
-    ? (ai.isDrawing && ai.isPigeon ? "approved" : "rejected")
-    : "needs_review";
+  const ai = {
+    configured: false,
+    isDrawing: null,
+    isPigeon: null,
+    confidence: 0
+  };
+  const status = "approved";
   const drawing = {
     id: makeId("drw"),
     artist,
@@ -1065,7 +989,7 @@ async function addDrawingSubmission(body, request) {
     imageMimeType: image.mimeType,
     status,
     ai,
-    aiFeedback: ai.feedback,
+    aiFeedback: "Saved to the community pigeon drawing gallery.",
     createdAt: nowIso(),
     ip: requestIp(request)
   };
@@ -1172,7 +1096,7 @@ function apiDocs() {
     features: [
       "Anonymous sessions",
       "Rate-limited leaderboard submissions",
-      "AI-assisted pigeon drawing moderation",
+      "Community pigeon drawing uploads",
       "Server-side PigeonDex cache",
       "Optional Airtable breed storage",
       "Wikipedia/Commons image enrichment for missing breed photos",
@@ -1187,8 +1111,8 @@ function apiDocs() {
       { method: "POST", path: "/api/feed", description: "Submit a completed feeding round.", body: { nickname: "string", amount: "number" } },
       { method: "GET", path: "/api/breeds", description: "Return cached PigeonDex breed data from Wikimedia/Wikidata." },
       { method: "GET", path: "/api/breeds/:id", description: "Return one cached breed by id." },
-      { method: "GET", path: "/api/drawings", description: "Return approved and review-pending pigeon drawings." },
-      { method: "POST", path: "/api/drawings", description: "Submit a pigeon drawing image for AI validation and storage.", body: { artist: "string", title: "string", imageDataUrl: "base64 data URL" } },
+      { method: "GET", path: "/api/drawings", description: "Return stored pigeon drawings." },
+      { method: "POST", path: "/api/drawings", description: "Submit a pigeon drawing image for storage.", body: { artist: "string", title: "string", imageDataUrl: "base64 data URL" } },
       { method: "POST", path: "/api/events", description: "Record a lightweight product analytics event.", body: { type: "string", details: "object" } },
       { method: "GET", path: "/api/admin/leaderboard", description: "Admin: list full leaderboard." },
       { method: "DELETE", path: "/api/admin/leaderboard/:nickname", description: "Admin: delete one leaderboard entry." },
@@ -1364,7 +1288,6 @@ function handleRequest(request, response) {
 
       sendJson(response, 200, {
         drawings: drawingEntries(60),
-        aiConfigured: Boolean(OPENAI_API_KEY),
         airtableConfigured: airtableConfigured()
       }, {
         "cache-control": "no-store"

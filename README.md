@@ -11,7 +11,6 @@ Made with Codex.
 - Leaderboard API with nickname sanitization and full round-score submission.
 - Rate limiting for public API routes.
 - Protected admin endpoints using the `x-admin-token` header.
-- AI-assisted pigeon drawing validation using OpenAI vision when configured.
 - Community drawing submissions stored locally and optionally mirrored to Airtable.
 - Server-side Wikimedia/Wikidata cache for PigeonDex breed data.
 - Missing breed images are searched through Wikipedia/Commons before falling back to the default image.
@@ -118,17 +117,6 @@ AIRTABLE_CACHED_AT_FIELD=CacheAt
 
 When Airtable is configured, the server loads stored pigeon breeds from Airtable first. If the Airtable cache is empty or expired, it refreshes from Wikimedia/Wikidata, searches for missing images through Wikipedia/Commons, and writes the refreshed data back to Airtable.
 
-## Optional AI Drawing Validation
-
-Set these environment variables to let the backend check uploaded drawings with OpenAI vision:
-
-```text
-OPENAI_API_KEY=your-openai-api-key
-OPENAI_VISION_MODEL=gpt-4.1-mini
-```
-
-If `OPENAI_API_KEY` is not set, drawing submissions are stored with `needs_review` status instead of being automatically approved or rejected.
-
 ## Test
 
 ```bash
@@ -143,7 +131,6 @@ Import this folder as a Vercel project and set:
 ADMIN_TOKEN=your-secret-token
 AIRTABLE_API_KEY=your-airtable-token
 AIRTABLE_BASE_ID=your-base-id
-OPENAI_API_KEY=your-openai-api-key
 ```
 
 The JSON storage works best for local/self-hosted demos. On serverless Vercel, file storage can be temporary between cold starts. For a production-grade leaderboard, the storage layer is ready to be swapped for Vercel KV, Supabase, Neon Postgres, or another managed database.

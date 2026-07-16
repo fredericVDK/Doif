@@ -66,7 +66,7 @@ function renderDrawings(drawings) {
             <span>By ${escapeHtml(drawing.artist)}</span>
             <span class="badge">${escapeHtml(drawing.statusLabel || drawing.status)}</span>
           </div>
-          <p>${escapeHtml(drawing.aiFeedback || "Waiting for a pigeon art verdict.")}</p>
+          <p>${escapeHtml(drawing.aiFeedback || "Saved to the community gallery.")}</p>
         </div>
       </article>
     `).join("")
@@ -120,7 +120,7 @@ form.addEventListener("submit", async (event) => {
   }
 
   submitButton.disabled = true;
-  formStatus.textContent = "Submitting and checking the drawing...";
+  formStatus.textContent = "Saving drawing...";
 
   try {
     const response = await fetch("/api/drawings", {

@@ -22,7 +22,7 @@
       </nav>
       <p class="eyebrow">Community gallery</p>
       <h1>Pigeon Drawings</h1>
-      <p>Upload a drawing of a pigeon. The backend checks whether it looks like both a drawing and a pigeon before it joins the gallery.</p>
+      <p>Upload a drawing of a pigeon. The backend stores it and adds it to the community gallery.</p>
     </header>
 
     <main class="drawings-shell">
@@ -30,7 +30,7 @@
         <div>
           <p class="section-kicker">Submit art</p>
           <h2>Show us your pigeon</h2>
-          <p class="muted">Drawings, sketches, paintings, marker chaos, and dramatic feather studies are welcome. Photos of real pigeons are politely rejected when AI validation is enabled.</p>
+          <p class="muted">Drawings, sketches, paintings, marker chaos, and dramatic feather studies are welcome.</p>
         </div>
         <form id="drawingForm" class="drawing-form">
           <label>
@@ -47,7 +47,7 @@
           </label>
           <img id="previewImage" class="preview-image" alt="" hidden>
           <button id="submitDrawing" type="submit">Submit drawing</button>
-          <p id="formStatus" class="form-status" role="status">AI validation runs on the server when configured.</p>
+          <p id="formStatus" class="form-status" role="status">Your image is resized in the browser before it is saved.</p>
         </form>
       </section>
 
