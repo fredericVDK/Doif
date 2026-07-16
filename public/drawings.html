@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Submit and browse pigeon drawings checked by AI.">
+    <title>Pigeon Drawing Gallery</title>
+    <link rel="stylesheet" href="drawings.css">
+    <script>
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+  </head>
+  <body>
+    <header class="drawings-header">
+      <nav aria-label="Site navigation">
+        <a href="index.html">Feed pigeons</a>
+        <a href="pigeondex.html">PigeonDex</a>
+        <a href="pigder.html">Pigder</a>
+        <a href="drawings.html" aria-current="page">Drawings</a>
+        <a href="api-docs.html">API docs</a>
+      </nav>
+      <p class="eyebrow">Community gallery</p>
+      <h1>Pigeon Drawings</h1>
+      <p>Upload a drawing of a pigeon. The backend checks whether it looks like both a drawing and a pigeon before it joins the gallery.</p>
+    </header>
+
+    <main class="drawings-shell">
+      <section class="submit-panel" aria-label="Submit pigeon drawing">
+        <div>
+          <p class="section-kicker">Submit art</p>
+          <h2>Show us your pigeon</h2>
+          <p class="muted">Drawings, sketches, paintings, marker chaos, and dramatic feather studies are welcome. Photos of real pigeons are politely rejected when AI validation is enabled.</p>
+        </div>
+        <form id="drawingForm" class="drawing-form">
+          <label>
+            <span>Your name</span>
+            <input id="artistInput" type="text" maxlength="32" autocomplete="name" placeholder="Pigeon artist">
+          </label>
+          <label>
+            <span>Drawing title</span>
+            <input id="titleInput" type="text" maxlength="48" placeholder="Bread Defender">
+          </label>
+          <label class="upload-box">
+            <span>Choose drawing image</span>
+            <input id="drawingFile" type="file" accept="image/png,image/jpeg,image/webp">
+          </label>
+          <img id="previewImage" class="preview-image" alt="" hidden>
+          <button id="submitDrawing" type="submit">Submit drawing</button>
+          <p id="formStatus" class="form-status" role="status">AI validation runs on the server when configured.</p>
+        </form>
+      </section>
+
+      <section class="gallery-panel" aria-label="Pigeon drawing gallery">
+        <div class="section-title">
+          <div>
+            <p class="section-kicker">Gallery</p>
+            <h2>Fresh pigeon art</h2>
+          </div>
+          <button id="refreshGallery" type="button">Refresh</button>
+        </div>
+        <div id="drawingGallery" class="drawing-gallery">Loading drawings...</div>
+      </section>
+    </main>
+
+    <script src="drawings.js"></script>
+  </body>
+</html>

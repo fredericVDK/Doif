@@ -24,8 +24,11 @@ const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY || "";
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID || "";
 const AIRTABLE_BREEDS_TABLE = process.env.AIRTABLE_BREEDS_TABLE || "Breeds";
 const AIRTABLE_CACHE_TABLE = process.env.AIRTABLE_CACHE_TABLE || "Cache";
+const AIRTABLE_DRAWINGS_TABLE = process.env.AIRTABLE_DRAWINGS_TABLE || "Drawings";
 const AIRTABLE_WIKIDATA_FIELD = process.env.AIRTABLE_WIKIDATA_FIELD || "WikiDataId";
 const AIRTABLE_CACHED_AT_FIELD = process.env.AIRTABLE_CACHED_AT_FIELD || "CacheAt";
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
+const OPENAI_VISION_MODEL = process.env.OPENAI_VISION_MODEL || "gpt-4.1-mini";
 let breedCache = {
   expiresAt: 0,
   data: null,
@@ -48,7 +51,10 @@ const allowedRootFiles = new Set([
   "pigeondex.js",
   "pigder.html",
   "pigder.css",
-  "pigder.js"
+  "pigder.js",
+  "drawings.html",
+  "drawings.css",
+  "drawings.js"
 ]);
 
 const mimeTypes = {
@@ -64,6 +70,7 @@ function defaultDatabase() {
     leaderboard: [],
     sessions: [],
     events: [],
+    drawings: [],
     breedCache: {
       version: 0,
       cachedAt: "",
@@ -872,6 +879,212 @@ function cleanNickname(value) {
   return nickname || "Anonymous";
 }
 
+function cleanDrawingText(value, fallback, maxLength = 48) {
+  return String(value || "")
+    .replace(/[^\w .,'!-]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength) || fallback;
+}
+
+function parseImageDataUrl(value) {
+  const match = String(value || "").match(/^data:image\/(png|jpe?g|webp);base64,([A-Za-z0-9+/=]+)$/i);
+
+  if (!match) {
+    throw new Error("Upload a PNG, JPG, or WebP drawing image.");
+  }
+
+  const mime = match[1].toLowerCase().replace("jpg", "jpeg");
+  const bytes = Math.floor(match[2].length * 0.75);
+
+  if (bytes > 650_000) {
+    throw new Error("Image is too large. Please upload a smaller drawing.");
+  }
+
+  return {
+    mimeType: `image/${mime}`,
+    bytes
+  };
+}
+
+function drawingStatusLabel(status) {
+  const labels = {
+    approved: "AI approved",
+    needs_review: "Needs review",
+    rejected: "Rejected"
+  };
+
+  return labels[status] || status;
+}
+
+function publicDrawing(entry) {
+  return {
+    id: entry.id,
+    artist: entry.artist,
+    title: entry.title,
+    imageDataUrl: entry.imageDataUrl,
+    status: entry.status,
+    statusLabel: drawingStatusLabel(entry.status),
+    aiFeedback: entry.aiFeedback,
+    createdAt: entry.createdAt
+  };
+}
+
+function drawingEntries(limit = 60) {
+  refreshDatabaseFromStorage();
+  return appDb.drawings
+    .filter((entry) => entry.status === "approved" || entry.status === "needs_review")
+    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
+    .slice(0, limit)
+    .map(publicDrawing);
+}
+
+function extractJsonObject(text) {
+  const match = String(text || "").match(/\{[\s\S]*\}/);
+
+  if (!match) return null;
+
+  try {
+    return JSON.parse(match[0]);
+  } catch (error) {
+    return null;
+  }
+}
+
+async function validateDrawingWithAi(imageDataUrl) {
+  if (!OPENAI_API_KEY) {
+    return {
+      configured: false,
+      isDrawing: null,
+      isPigeon: null,
+      confidence: 0,
+      feedback: "AI validation is not configured yet, so this drawing is waiting for review."
+    };
+  }
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${OPENAI_API_KEY}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      model: OPENAI_VISION_MODEL,
+      input: [{
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: [
+              "You moderate a community pigeon drawing gallery.",
+              "Return only JSON with keys isDrawing boolean, isPigeon boolean, confidence number 0-1, feedback string.",
+              "Approve drawings, sketches, paintings, cartoons, or digital art of pigeons.",
+              "Reject real bird photos, unrelated drawings, screenshots, and non-pigeon animals."
+            ].join(" ")
+          },
+          {
+            type: "input_image",
+            image_url: imageDataUrl,
+            detail: "low"
+          }
+        ]
+      }]
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`AI validation failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const outputText = data.output_text || (data.output || [])
+    .flatMap((item) => item.content || [])
+    .map((item) => item.text || "")
+    .join(" ");
+  const parsed = extractJsonObject(outputText);
+
+  if (!parsed) {
+    throw new Error("AI validation returned an unreadable response.");
+  }
+
+  return {
+    configured: true,
+    isDrawing: Boolean(parsed.isDrawing),
+    isPigeon: Boolean(parsed.isPigeon),
+    confidence: Math.max(0, Math.min(1, Number(parsed.confidence) || 0)),
+    feedback: String(parsed.feedback || "AI checked this submission.").slice(0, 220)
+  };
+}
+
+async function writeAirtableDrawing(drawing) {
+  if (!airtableConfigured()) return;
+
+  try {
+    await airtableRequest(AIRTABLE_DRAWINGS_TABLE, {
+      method: "POST",
+      body: JSON.stringify({
+        records: [{
+          fields: {
+            Id: drawing.id,
+            Artist: drawing.artist,
+            Title: drawing.title,
+            ImageDataUrl: drawing.imageDataUrl,
+            Status: drawing.status,
+            IsDrawing: drawing.ai.isDrawing,
+            IsPigeon: drawing.ai.isPigeon,
+            Confidence: drawing.ai.confidence,
+            AiFeedback: drawing.aiFeedback,
+            CreatedAt: drawing.createdAt
+          }
+        }],
+        typecast: true
+      })
+    });
+  } catch (error) {
+    console.warn("Could not write drawing to Airtable.", error);
+  }
+}
+
+async function addDrawingSubmission(body, request) {
+  refreshDatabaseFromStorage();
+
+  const artist = cleanDrawingText(body.artist, "Anonymous artist", 32);
+  const title = cleanDrawingText(body.title, "Untitled pigeon", 48);
+  const imageDataUrl = String(body.imageDataUrl || "");
+  const image = parseImageDataUrl(imageDataUrl);
+  const ai = await validateDrawingWithAi(imageDataUrl);
+  const status = ai.configured
+    ? (ai.isDrawing && ai.isPigeon ? "approved" : "rejected")
+    : "needs_review";
+  const drawing = {
+    id: makeId("drw"),
+    artist,
+    title,
+    imageDataUrl,
+    imageBytes: image.bytes,
+    imageMimeType: image.mimeType,
+    status,
+    ai,
+    aiFeedback: ai.feedback,
+    createdAt: nowIso(),
+    ip: requestIp(request)
+  };
+
+  appDb.drawings.unshift(drawing);
+  appDb.drawings = appDb.drawings.slice(0, 120);
+  logEvent("drawing_submitted", {
+    id: drawing.id,
+    status,
+    aiConfigured: ai.configured,
+    isDrawing: ai.isDrawing,
+    isPigeon: ai.isPigeon
+  }, request);
+  saveDatabase();
+  writeAirtableDrawing(drawing);
+
+  return drawing;
+}
+
 function leaderboardEntries(limit = 10) {
   refreshDatabaseFromStorage();
 
@@ -927,14 +1140,14 @@ function deleteLeaderboardEntry(nickname) {
   return appDb.leaderboard.length !== before;
 }
 
-function readJsonBody(request) {
+function readJsonBody(request, maxBytes = 4096) {
   return new Promise((resolve, reject) => {
     let body = "";
 
     request.on("data", (chunk) => {
       body += chunk;
 
-      if (body.length > 4096) {
+      if (body.length > maxBytes) {
         reject(new Error("Request body is too large."));
         request.destroy();
       }
@@ -959,6 +1172,7 @@ function apiDocs() {
     features: [
       "Anonymous sessions",
       "Rate-limited leaderboard submissions",
+      "AI-assisted pigeon drawing moderation",
       "Server-side PigeonDex cache",
       "Optional Airtable breed storage",
       "Wikipedia/Commons image enrichment for missing breed photos",
@@ -973,6 +1187,8 @@ function apiDocs() {
       { method: "POST", path: "/api/feed", description: "Submit a completed feeding round.", body: { nickname: "string", amount: "number" } },
       { method: "GET", path: "/api/breeds", description: "Return cached PigeonDex breed data from Wikimedia/Wikidata." },
       { method: "GET", path: "/api/breeds/:id", description: "Return one cached breed by id." },
+      { method: "GET", path: "/api/drawings", description: "Return approved and review-pending pigeon drawings." },
+      { method: "POST", path: "/api/drawings", description: "Submit a pigeon drawing image for AI validation and storage.", body: { artist: "string", title: "string", imageDataUrl: "base64 data URL" } },
       { method: "POST", path: "/api/events", description: "Record a lightweight product analytics event.", body: { type: "string", details: "object" } },
       { method: "GET", path: "/api/admin/leaderboard", description: "Admin: list full leaderboard." },
       { method: "DELETE", path: "/api/admin/leaderboard/:nickname", description: "Admin: delete one leaderboard entry." },
@@ -1139,6 +1355,48 @@ function handleRequest(request, response) {
         sendJson(response, 202, { ok: true });
       })
       .catch((error) => sendJson(response, 400, { error: error.message }));
+    return;
+  }
+
+  if (url.pathname === "/api/drawings") {
+    if (request.method === "GET") {
+      if (!requireRateLimit(request, response, "drawings", 80, 60_000)) return;
+
+      sendJson(response, 200, {
+        drawings: drawingEntries(60),
+        aiConfigured: Boolean(OPENAI_API_KEY),
+        airtableConfigured: airtableConfigured()
+      }, {
+        "cache-control": "no-store"
+      });
+      return;
+    }
+
+    if (request.method === "POST") {
+      if (!requireRateLimit(request, response, "drawing-submit", 8, 60_000)) return;
+
+      readJsonBody(request, 900_000)
+        .then((body) => addDrawingSubmission(body, request))
+        .then((drawing) => {
+          const accepted = drawing.status !== "rejected";
+
+          sendJson(response, accepted ? 201 : 422, {
+            drawing: publicDrawing(drawing),
+            message: accepted
+              ? "Drawing submitted to the pigeon gallery."
+              : "AI rejected this image because it does not look like a pigeon drawing.",
+            ai: drawing.ai
+          }, {
+            "cache-control": "no-store"
+          });
+        })
+        .catch((error) => sendJson(response, 400, {
+          error: error.message
+        }));
+      return;
+    }
+
+    methodNotAllowed(response);
     return;
   }
 

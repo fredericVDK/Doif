@@ -6,6 +6,9 @@ const test = require("node:test");
 
 process.env.DATA_FILE = path.join(os.tmpdir(), `pigeon-test-${Date.now()}-${Math.random()}.json`);
 process.env.ADMIN_TOKEN = "test-admin";
+process.env.OPENAI_API_KEY = "";
+process.env.AIRTABLE_API_KEY = "";
+process.env.AIRTABLE_BASE_ID = "";
 
 const handleRequest = require("../server");
 
@@ -107,7 +110,36 @@ test("api docs expose documented endpoints", async () => {
     assert.equal(response.status, 200);
     assert.equal(data.name, "Pigeon Crumbs API");
     assert.equal(paths.includes("/api/feed"), true);
+    assert.equal(paths.includes("/api/drawings"), true);
     assert.equal(paths.includes("/api/admin/events"), true);
+  } finally {
+    await server.close();
+  }
+});
+
+test("drawing endpoint stores review-pending submissions without AI key", async () => {
+  const server = await createTestServer();
+  const imageDataUrl = "data:image/png;base64,iVBORw0KGgo=";
+
+  try {
+    const submitted = await requestJson(server.baseUrl, "/api/drawings", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        artist: "Sketch Friend",
+        title: "Round Pigeon",
+        imageDataUrl
+      })
+    });
+
+    assert.equal(submitted.response.status, 201);
+    assert.equal(submitted.data.drawing.artist, "Sketch Friend");
+    assert.equal(submitted.data.drawing.status, "needs_review");
+
+    const listed = await requestJson(server.baseUrl, "/api/drawings");
+    assert.equal(listed.response.status, 200);
+    assert.equal(listed.data.drawings.length, 1);
+    assert.equal(listed.data.drawings[0].title, "Round Pigeon");
   } finally {
     await server.close();
   }
