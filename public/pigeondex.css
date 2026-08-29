@@ -1,12 +1,13 @@
 :root {
   color-scheme: light;
-  --ink: #20302d;
-  --muted: rgba(32, 48, 45, 0.68);
-  --panel: rgba(255, 255, 255, 0.78);
-  --line: rgba(32, 48, 45, 0.16);
-  --accent: #41776d;
-  --accent-dark: #27534c;
-  --crumb: #d99b47;
+  --ink: #17212b;
+  --muted: rgba(23, 33, 43, 0.7);
+  --panel: rgba(246, 248, 251, 0.84);
+  --line: rgba(58, 72, 96, 0.18);
+  --accent: #536f9e;
+  --accent-dark: #604b86;
+  --sheen: #4f9ca0;
+  --crumb: #d6a85b;
 }
 
 * {
@@ -17,7 +18,7 @@ body {
   min-height: 100vh;
   margin: 0;
   background:
-    linear-gradient(rgba(239, 242, 232, 0.76), rgba(183, 190, 175, 0.64)),
+    linear-gradient(rgba(222, 230, 240, 0.82), rgba(132, 143, 160, 0.68)),
     url("assets/pavement-floor.png") center top / cover fixed;
   color: var(--ink);
   font-family: Arial, Helvetica, sans-serif;
@@ -33,7 +34,9 @@ select {
   position: relative;
   padding: 24px clamp(18px, 4vw, 60px) 24px;
   border-bottom: 1px solid var(--line);
-  background: rgba(250, 251, 245, 0.82);
+  background:
+    linear-gradient(135deg, rgba(247, 249, 252, 0.92), rgba(231, 228, 243, 0.86)),
+    rgba(246, 248, 251, 0.86);
 }
 
 .header-copy {
@@ -54,7 +57,7 @@ button {
   min-height: 40px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.75);
+  background: rgba(246, 248, 251, 0.78);
   color: var(--ink);
   font-weight: 700;
   text-decoration: none;
@@ -74,7 +77,7 @@ button {
 button:hover,
 .dex-nav a:hover,
 button[aria-pressed="true"] {
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
   color: white;
 }
 
@@ -126,7 +129,7 @@ h1 {
   padding: 12px 0;
   margin-bottom: 16px;
   background:
-    linear-gradient(rgba(239, 242, 232, 0.94), rgba(239, 242, 232, 0.76)),
+    linear-gradient(rgba(222, 230, 240, 0.96), rgba(222, 230, 240, 0.78)),
     url("assets/pavement-floor.png") center top / cover fixed;
 }
 
@@ -154,7 +157,7 @@ h1 {
   padding: 0 15px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.86);
+  background: rgba(247, 249, 252, 0.9);
   color: var(--ink);
   font-size: 16px;
 }
@@ -165,7 +168,7 @@ h1 {
   background:
     linear-gradient(45deg, transparent 50%, var(--accent-dark) 50%) right 18px center / 7px 7px no-repeat,
     linear-gradient(135deg, var(--accent-dark) 50%, transparent 50%) right 13px center / 7px 7px no-repeat,
-    rgba(255, 255, 255, 0.86);
+    rgba(247, 249, 252, 0.9);
 }
 
 .compare-panel,
@@ -178,7 +181,7 @@ h1 {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
-  box-shadow: 0 12px 30px rgba(32, 48, 45, 0.08);
+  box-shadow: 0 12px 30px rgba(23, 33, 43, 0.1);
 }
 
 .detail-panel[hidden] {
@@ -207,7 +210,7 @@ h1 {
   aspect-ratio: 16 / 11;
   border-radius: 8px;
   object-fit: cover;
-  background: #d9ddd3;
+  background: #dce1e8;
 }
 
 .detail-hero h2 {
@@ -250,12 +253,12 @@ h1 {
   place-items: center;
   min-height: 180px;
   padding: 18px;
-  border: 1px solid rgba(32, 48, 45, 0.14);
+  border: 1px solid rgba(58, 72, 96, 0.14);
   border-radius: 8px;
   background:
-    linear-gradient(90deg, rgba(65, 119, 109, 0.12) 1px, transparent 1px),
-    linear-gradient(rgba(65, 119, 109, 0.12) 1px, transparent 1px),
-    rgba(255, 255, 255, 0.5);
+    linear-gradient(90deg, rgba(83, 111, 158, 0.12) 1px, transparent 1px),
+    linear-gradient(rgba(96, 75, 134, 0.1) 1px, transparent 1px),
+    rgba(247, 249, 252, 0.5);
   background-size: 28px 28px;
   text-align: center;
 }
@@ -317,14 +320,14 @@ h1 {
   gap: 8px;
   min-height: 0;
   padding: 8px;
-  border: 1px solid rgba(32, 48, 45, 0.1);
+  border: 1px solid rgba(58, 72, 96, 0.1);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.52);
+  background: rgba(247, 249, 252, 0.54);
   cursor: pointer;
 }
 
 .related-card:hover {
-  background: rgba(65, 119, 109, 0.12);
+  background: rgba(83, 111, 158, 0.13);
   color: var(--ink);
 }
 
@@ -364,9 +367,9 @@ h1 {
   place-items: center;
   min-height: 132px;
   padding: 14px;
-  border: 1px dashed rgba(32, 48, 45, 0.24);
+  border: 1px dashed rgba(58, 72, 96, 0.24);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(247, 249, 252, 0.5);
   color: var(--accent-dark);
   font-weight: 800;
   text-align: center;
@@ -391,7 +394,7 @@ h1 {
   aspect-ratio: 1 / 1;
   border-radius: 8px;
   object-fit: cover;
-  background: #d9ddd3;
+  background: #dce1e8;
 }
 
 .rating-grid {
@@ -403,9 +406,9 @@ h1 {
 
 .rating-pill {
   padding: 9px;
-  border: 1px solid rgba(32, 48, 45, 0.1);
+  border: 1px solid rgba(58, 72, 96, 0.1);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.56);
+  background: rgba(247, 249, 252, 0.58);
 }
 
 .rating-pill span {
@@ -423,7 +426,7 @@ h1 {
 
 .personality-report {
   margin: 0;
-  color: rgba(32, 48, 45, 0.82);
+  color: rgba(23, 33, 43, 0.82);
   line-height: 1.45;
 }
 
@@ -492,7 +495,7 @@ h1 {
   aspect-ratio: 4 / 3;
   border-radius: 8px;
   object-fit: cover;
-  background: #d9ddd3;
+  background: #dce1e8;
 }
 
 .daily-card h3,
@@ -538,9 +541,9 @@ h1 {
 .battle-commentary {
   min-height: 48px;
   padding: 10px 12px;
-  border: 1px solid rgba(32, 48, 45, 0.12);
+  border: 1px solid rgba(58, 72, 96, 0.12);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(247, 249, 252, 0.5);
 }
 
 .battle-commentary p {
@@ -553,9 +556,9 @@ h1 {
   display: grid;
   gap: 4px;
   padding: 10px;
-  border: 1px solid rgba(32, 48, 45, 0.12);
+  border: 1px solid rgba(58, 72, 96, 0.12);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(247, 249, 252, 0.5);
 }
 
 .battle-history-card span,
@@ -580,7 +583,7 @@ h1 {
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(247, 249, 252, 0.6);
 }
 
 .battle-slot {
@@ -590,9 +593,9 @@ h1 {
 .battle-stage {
   min-height: 180px;
   padding: 14px;
-  border: 1px dashed rgba(32, 48, 45, 0.22);
+  border: 1px dashed rgba(58, 72, 96, 0.22);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.42);
+  background: rgba(247, 249, 252, 0.44);
   overflow: hidden;
 }
 
@@ -628,10 +631,10 @@ h1 {
 
 .dust-cloud span {
   position: absolute;
-  border: 3px solid #6d4d33;
+  border: 3px solid #6f5a80;
   border-radius: 50%;
-  background: #f2dfbf;
-  box-shadow: 0 6px 0 rgba(32, 48, 45, 0.08);
+  background: #ece6d1;
+  box-shadow: 0 6px 0 rgba(23, 33, 43, 0.08);
   animation: dust-pop 700ms ease-in-out infinite alternate;
 }
 
@@ -676,7 +679,7 @@ h1 {
 
 .fight-button {
   width: 100%;
-  background: var(--accent-dark);
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
   color: white;
 }
 
@@ -688,7 +691,7 @@ h1 {
   z-index: 2;
   transform: translate(-50%, -50%);
   font-size: clamp(62px, 9vw, 116px);
-  filter: drop-shadow(0 8px 10px rgba(32, 48, 45, 0.25));
+  filter: drop-shadow(0 8px 10px rgba(23, 33, 43, 0.25));
 }
 
 .winner-card img {
@@ -750,7 +753,7 @@ h1 {
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.56);
+  background: rgba(247, 249, 252, 0.58);
 }
 
 .compare-image {
@@ -759,7 +762,7 @@ h1 {
   aspect-ratio: 1 / 1;
   border-radius: 8px;
   object-fit: cover;
-  background: #d9ddd3;
+  background: #dce1e8;
 }
 
 .compare-item h3 {
@@ -816,9 +819,9 @@ h1 {
   padding: 10px;
   object-fit: contain;
   background:
-    linear-gradient(rgba(255, 255, 255, 0.48), rgba(222, 226, 215, 0.62)),
-    #d9ddd3;
-  border-bottom: 1px solid rgba(32, 48, 45, 0.12);
+    linear-gradient(rgba(247, 249, 252, 0.5), rgba(220, 226, 236, 0.62)),
+    #dce1e8;
+  border-bottom: 1px solid rgba(58, 72, 96, 0.12);
 }
 
 .breed-body {
@@ -877,9 +880,9 @@ h1 {
   display: grid;
   align-content: start;
   padding: 9px;
-  border: 1px solid rgba(32, 48, 45, 0.1);
+  border: 1px solid rgba(58, 72, 96, 0.1);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.52);
+  background: rgba(247, 249, 252, 0.56);
 }
 
 .fact span {
@@ -909,7 +912,7 @@ h1 {
 
 .summary {
   margin: 0;
-  color: rgba(32, 48, 45, 0.82);
+  color: rgba(23, 33, 43, 0.82);
   line-height: 1.45;
 }
 
@@ -950,14 +953,14 @@ h1 {
   min-height: 40px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.75);
+  background: rgba(247, 249, 252, 0.76);
   color: var(--accent-dark);
   font-weight: 800;
   text-decoration: none;
 }
 
 .source-link:hover {
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
   color: white;
 }
 

@@ -1,12 +1,12 @@
 :root {
   color-scheme: light;
-  --ink: #20302d;
-  --muted: rgba(32, 48, 45, 0.68);
-  --panel: rgba(255, 255, 255, 0.82);
-  --line: rgba(32, 48, 45, 0.16);
-  --accent: #41776d;
-  --accent-dark: #27534c;
-  --paper: #fbf6df;
+  --ink: #17212b;
+  --muted: rgba(23, 33, 43, 0.7);
+  --panel: rgba(246, 248, 251, 0.84);
+  --line: rgba(58, 72, 96, 0.18);
+  --accent: #536f9e;
+  --accent-dark: #604b86;
+  --paper: #f2f0dc;
 }
 
 * {
@@ -17,7 +17,7 @@ body {
   min-height: 100vh;
   margin: 0;
   background:
-    linear-gradient(rgba(239, 242, 232, 0.78), rgba(183, 190, 175, 0.68)),
+    linear-gradient(rgba(222, 230, 240, 0.82), rgba(132, 143, 160, 0.68)),
     url("assets/pavement-floor.png") center top / cover fixed;
   color: var(--ink);
   font-family: Arial, Helvetica, sans-serif;
@@ -33,7 +33,7 @@ button {
   padding: 0 16px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(246, 248, 251, 0.78);
   color: var(--ink);
   font-weight: 800;
   cursor: pointer;
@@ -41,7 +41,7 @@ button {
 
 button:hover,
 button:focus-visible {
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
   color: white;
 }
 
@@ -53,7 +53,9 @@ button:disabled {
 .drawings-header {
   padding: 28px clamp(18px, 5vw, 72px);
   border-bottom: 1px solid var(--line);
-  background: rgba(250, 251, 245, 0.86);
+  background:
+    linear-gradient(135deg, rgba(247, 249, 252, 0.92), rgba(231, 228, 243, 0.86)),
+    rgba(246, 248, 251, 0.86);
 }
 
 nav {
@@ -70,7 +72,7 @@ nav a {
   padding: 0 14px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.74);
+  background: rgba(246, 248, 251, 0.76);
   color: var(--ink);
   font-weight: 800;
   text-decoration: none;
@@ -123,7 +125,7 @@ h2 {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
-  box-shadow: 0 12px 30px rgba(32, 48, 45, 0.08);
+  box-shadow: 0 12px 30px rgba(23, 33, 43, 0.1);
 }
 
 .submit-panel,
@@ -162,7 +164,7 @@ h2 {
   padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.86);
+  background: rgba(247, 249, 252, 0.9);
   color: var(--ink);
 }
 
@@ -170,9 +172,9 @@ h2 {
   place-items: center;
   min-height: 128px;
   padding: 14px;
-  border: 1px dashed rgba(32, 48, 45, 0.25);
+  border: 1px dashed rgba(58, 72, 96, 0.25);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.48);
+  background: rgba(247, 249, 252, 0.5);
   text-align: center;
   cursor: pointer;
 }
@@ -221,7 +223,7 @@ h2 {
   padding: 10px;
   object-fit: contain;
   background: var(--paper);
-  border-bottom: 1px solid rgba(32, 48, 45, 0.12);
+  border-bottom: 1px solid rgba(58, 72, 96, 0.12);
 }
 
 .drawing-body {
@@ -250,9 +252,9 @@ h2 {
   align-items: center;
   min-height: 25px;
   padding: 0 8px;
-  border: 1px solid rgba(32, 48, 45, 0.12);
+  border: 1px solid rgba(58, 72, 96, 0.12);
   border-radius: 999px;
-  background: rgba(65, 119, 109, 0.14);
+  background: rgba(83, 111, 158, 0.14);
   color: var(--accent-dark);
   font-size: 12px;
   font-weight: 900;

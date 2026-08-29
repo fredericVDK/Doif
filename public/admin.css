@@ -1,11 +1,11 @@
 :root {
   color-scheme: light;
-  --ink: #20302d;
-  --muted: rgba(32, 48, 45, 0.68);
-  --panel: rgba(255, 255, 255, 0.82);
-  --line: rgba(32, 48, 45, 0.16);
-  --accent: #41776d;
-  --danger: #8a4a4a;
+  --ink: #17212b;
+  --muted: rgba(23, 33, 43, 0.7);
+  --panel: rgba(246, 248, 251, 0.84);
+  --line: rgba(58, 72, 96, 0.18);
+  --accent: #536f9e;
+  --danger: #7a4b74;
 }
 
 * {
@@ -16,7 +16,7 @@ body {
   min-height: 100vh;
   margin: 0;
   background:
-    linear-gradient(rgba(239, 242, 232, 0.78), rgba(183, 190, 175, 0.68)),
+    linear-gradient(rgba(222, 230, 240, 0.82), rgba(132, 143, 160, 0.68)),
     url("assets/pavement-floor.png") center top / cover fixed;
   color: var(--ink);
   font-family: Arial, Helvetica, sans-serif;
@@ -32,21 +32,23 @@ button {
   padding: 0 14px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.76);
+  background: rgba(246, 248, 251, 0.78);
   color: var(--ink);
   font-weight: 800;
   cursor: pointer;
 }
 
 button:hover {
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent), #604b86);
   color: white;
 }
 
 .admin-header {
   padding: 28px clamp(18px, 5vw, 72px);
   border-bottom: 1px solid var(--line);
-  background: rgba(250, 251, 245, 0.86);
+  background:
+    linear-gradient(135deg, rgba(247, 249, 252, 0.92), rgba(231, 228, 243, 0.86)),
+    rgba(246, 248, 251, 0.86);
 }
 
 .admin-locked .admin-header,
@@ -73,7 +75,7 @@ nav a {
   padding: 0 14px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.74);
+  background: rgba(246, 248, 251, 0.76);
   color: var(--ink);
   font-weight: 800;
   text-decoration: none;
@@ -81,7 +83,7 @@ nav a {
 
 .eyebrow {
   margin: 28px 0 8px;
-  color: #27534c;
+  color: #604b86;
   font-size: 13px;
   font-weight: 900;
   letter-spacing: 0.08em;
@@ -115,7 +117,7 @@ section {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
-  box-shadow: 0 12px 30px rgba(32, 48, 45, 0.08);
+  box-shadow: 0 12px 30px rgba(23, 33, 43, 0.1);
 }
 
 .token-panel {
@@ -135,6 +137,8 @@ input {
   padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
+  background: rgba(247, 249, 252, 0.9);
+  color: var(--ink);
 }
 
 .section-title {
@@ -158,9 +162,9 @@ h2 {
   display: grid;
   gap: 6px;
   padding: 12px;
-  border: 1px solid rgba(32, 48, 45, 0.12);
+  border: 1px solid rgba(58, 72, 96, 0.12);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.56);
+  background: rgba(247, 249, 252, 0.58);
 }
 
 .table-row {
@@ -186,7 +190,7 @@ h2 {
 code {
   padding: 2px 5px;
   border-radius: 5px;
-  background: rgba(32, 48, 45, 0.08);
+  background: rgba(58, 72, 96, 0.1);
 }
 
 @media (max-width: 760px) {
