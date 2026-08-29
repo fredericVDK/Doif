@@ -1,19 +1,20 @@
 :root {
   color-scheme: light;
-  --sky: #d9e4ee;
-  --pavement: #8f98a6;
-  --pavement-dark: #626d7c;
-  --ink: #17212b;
-  --muted: rgba(23, 33, 43, 0.76);
-  --panel: rgba(246, 248, 251, 0.88);
-  --line: rgba(58, 72, 96, 0.2);
-  --accent: #536f9e;
-  --accent-dark: #604b86;
-  --crumb: #d9aa59;
+  --sky: #d7d9d3;
+  --pavement: #d7d9d3;
+  --pavement-dark: #6f777f;
+  --ink: #1e252b;
+  --muted: rgba(30, 37, 43, 0.72);
+  --panel: #f5f5f0;
+  --surface-2: #eceee9;
+  --line: #b8bdb7;
+  --accent: #4f6f91;
+  --accent-dark: #625071;
+  --crumb: #b88d42;
   --crumb-edge: #9b6b28;
   --pigeon-body: #828a96;
   --pigeon-wing: #4d5664;
-  --pigeon-neck: #536f9e;
+  --pigeon-neck: #4f6f91;
   --pigeon-feet: #cf6b5d;
   --photo-height: clamp(390px, 58vh, 560px);
   --intro-height: 220px;
@@ -52,9 +53,7 @@ button {
   position: relative;
   min-height: 100vh;
   min-height: 100svh;
-  background:
-    linear-gradient(rgba(217, 228, 238, 0.42), rgba(98, 109, 124, 0.36)),
-    url("assets/pavement-floor.png") center top / cover;
+  background: #d7d9d3 url("assets/pavement-floor.png") center top / cover;
 }
 
 .intro {
@@ -66,9 +65,7 @@ button {
   padding: 34px clamp(20px, 7vw, 120px) 28px;
   place-content: center;
   text-align: center;
-  background:
-    linear-gradient(rgba(247, 249, 252, 0.9), rgba(220, 226, 236, 0.84)),
-    url("assets/pavement-floor.png") center 35% / cover;
+  background: var(--panel);
   border-bottom: 1px solid var(--line);
 }
 
@@ -84,8 +81,8 @@ button {
   min-height: 38px;
   padding: 0 14px;
   border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(246, 248, 251, 0.72);
+  border-radius: 4px;
+  background: var(--surface-2);
   color: var(--ink);
   font-size: 14px;
   font-weight: 700;
@@ -93,7 +90,9 @@ button {
 }
 
 .site-nav a:hover {
-  background: rgba(244, 239, 251, 0.9);
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
 }
 
 .intro h1 {
@@ -118,11 +117,9 @@ button {
   width: 100%;
   height: var(--photo-height);
   overflow: hidden;
-  border-bottom: 5px solid rgba(96, 75, 134, 0.3);
-  background:
-    linear-gradient(rgba(217, 228, 238, 0.18), rgba(98, 109, 124, 0.2)),
-    url("assets/pavement-floor.png") center center / cover;
-  box-shadow: 0 12px 34px rgba(23, 33, 43, 0.24);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2) url("assets/pavement-floor.png") center center / cover;
+  box-shadow: none;
 }
 
 .photo-strip img {
@@ -204,9 +201,9 @@ button {
   width: min(440px, calc(100vw - 28px));
   padding: 14px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 4px;
   background: var(--panel);
-  box-shadow: 0 16px 38px rgba(23, 33, 43, 0.22);
+  box-shadow: none;
   backdrop-filter: blur(8px);
   user-select: text;
 }
@@ -217,8 +214,8 @@ button {
   min-width: 94px;
   min-height: 94px;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.66);
+  border-radius: 4px;
+  background: var(--surface-2);
 }
 
 .feed-counter span,
@@ -258,16 +255,16 @@ button {
   min-height: 40px;
   padding: 0 11px;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.78);
+  border-radius: 4px;
+  background: #fff;
   color: var(--ink);
 }
 
 .score-form button {
   min-height: 38px;
   border: 1px solid var(--line);
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  border-radius: 4px;
+  background: var(--accent);
   color: white;
   font-weight: 800;
 }
@@ -302,8 +299,8 @@ button {
   min-height: 34px;
   padding: 6px 9px;
   border: 1px solid rgba(58, 72, 96, 0.13);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.5);
+  border-radius: 4px;
+  background: var(--surface-2);
   color: var(--muted);
   font-size: 14px;
 }
@@ -321,8 +318,8 @@ button {
   padding: 8px 12px;
   transform: translateX(-50%);
   border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.52);
+  border-radius: 4px;
+  background: var(--panel);
   color: var(--muted);
   font-size: 14px;
   line-height: 1;

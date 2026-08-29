@@ -1,12 +1,13 @@
 :root {
   color-scheme: light;
-  --ink: #17212b;
-  --muted: rgba(23, 33, 43, 0.7);
-  --panel: rgba(246, 248, 251, 0.84);
-  --line: rgba(58, 72, 96, 0.18);
-  --accent: #536f9e;
-  --accent-dark: #604b86;
-  --warm: #d6a85b;
+  --ink: #1e252b;
+  --muted: rgba(30, 37, 43, 0.68);
+  --panel: #f5f5f0;
+  --surface-2: #eceee9;
+  --line: #b8bdb7;
+  --accent: #4f6f91;
+  --accent-dark: #625071;
+  --warm: #b88d42;
 }
 
 * {
@@ -16,9 +17,7 @@
 body {
   min-height: 100vh;
   margin: 0;
-  background:
-    linear-gradient(rgba(222, 230, 240, 0.82), rgba(132, 143, 160, 0.68)),
-    url("assets/pavement-floor.png") center top / cover fixed;
+  background: #d7d9d3;
   color: var(--ink);
   font-family: Arial, Helvetica, sans-serif;
 }
@@ -27,8 +26,8 @@ button {
   min-height: 42px;
   padding: 0 18px;
   border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(246, 248, 251, 0.78);
+  border-radius: 4px;
+  background: var(--surface-2);
   color: var(--ink);
   font: inherit;
   font-weight: 800;
@@ -38,17 +37,16 @@ button {
 button:hover,
 .pigder-nav a:hover,
 .pigder-nav a[aria-current="page"] {
-  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  border-color: var(--accent);
+  background: var(--accent);
   color: white;
 }
 
 .pigder-header {
   position: relative;
-  padding: 28px clamp(18px, 5vw, 72px);
+  padding: 20px clamp(18px, 5vw, 72px);
   border-bottom: 1px solid var(--line);
-  background:
-    linear-gradient(135deg, rgba(247, 249, 252, 0.92), rgba(231, 228, 243, 0.86)),
-    rgba(246, 248, 251, 0.86);
+  background: var(--panel);
 }
 
 .pigder-nav {
@@ -66,8 +64,8 @@ button:hover,
   min-height: 40px;
   padding: 0 14px;
   border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(246, 248, 251, 0.76);
+  border-radius: 4px;
+  background: var(--surface-2);
   color: var(--ink);
   font-weight: 800;
   text-decoration: none;
@@ -85,15 +83,15 @@ button:hover,
 
 h1 {
   margin: 22px 0 8px;
-  font-size: clamp(54px, 8vw, 104px);
-  line-height: 0.9;
+  font-size: clamp(38px, 5vw, 64px);
+  line-height: 1;
 }
 
 .lede {
   max-width: 680px;
   margin: 0;
   color: var(--muted);
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1.45;
 }
 
@@ -111,9 +109,9 @@ h1 {
 .result-panel,
 .swipe-card {
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 4px;
   background: var(--panel);
-  box-shadow: 0 12px 30px rgba(23, 33, 43, 0.1);
+  box-shadow: none;
 }
 
 .swipe-panel {
@@ -176,8 +174,8 @@ h1 {
   align-self: flex-start;
   padding: 8px 12px;
   border: 3px solid currentColor;
-  border-radius: 8px;
-  background: rgba(247, 249, 252, 0.78);
+  border-radius: 4px;
+  background: var(--panel);
   font-size: 24px;
   font-weight: 900;
   text-transform: uppercase;
@@ -215,9 +213,9 @@ h1 {
 
 .fact {
   padding: 9px;
-  border: 1px solid rgba(58, 72, 96, 0.12);
-  border-radius: 8px;
-  background: rgba(247, 249, 252, 0.58);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-2);
 }
 
 .fact span {
@@ -257,7 +255,7 @@ h1 {
 }
 
 .like:hover {
-  background: linear-gradient(135deg, var(--accent), #4f9ca0);
+  background: var(--accent);
 }
 
 .result-panel {
@@ -271,7 +269,7 @@ h1 {
 .result-panel img {
   width: 100%;
   aspect-ratio: 4 / 3;
-  border-radius: 8px;
+  border-radius: 4px;
   object-fit: cover;
   background: #dce1e8;
 }
@@ -286,15 +284,15 @@ h1 {
 
 .preference-list li {
   padding: 9px 10px;
-  border: 1px solid rgba(58, 72, 96, 0.12);
-  border-radius: 8px;
-  background: rgba(247, 249, 252, 0.58);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-2);
   font-weight: 800;
 }
 
 @media (max-width: 760px) {
   .pigder-header {
-    padding: 16px 14px 18px;
+    padding: 14px;
   }
 
   .pigder-nav {
@@ -310,7 +308,7 @@ h1 {
 
   h1 {
     margin-top: 0;
-    font-size: clamp(42px, 17vw, 68px);
+    font-size: clamp(36px, 13vw, 56px);
   }
 
   .lede {
