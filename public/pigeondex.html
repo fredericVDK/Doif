@@ -3,9 +3,10 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Search pigeon breeds using live Wikipedia and Wikidata API data.">
+    <meta name="description" content="Explore wild pigeon species and domestic breeds, powered by BirdNET and Wikimedia.">
     <title>PigeonDex</title>
     <link rel="stylesheet" href="pigeondex.css">
+    <link rel="stylesheet" href="catalog-ui.css">
     <script>
       window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
     </script>
@@ -23,9 +24,7 @@
         <p class="eyebrow">Live API bird book</p>
         <h1>PigeonDex</h1>
         <p class="lede">
-          Search domestic pigeon breeds with data loaded from Wikipedia,
-          Wikidata, and Wikimedia image APIs. Fields that are not available in
-          those databases are shown honestly instead of guessed.
+          Explore wild pigeon species and domestic breeds. Discover their names, photos and stories, with room for more information as the catalogue grows.
         </p>
       </div>
     </header>
@@ -35,7 +34,7 @@
         <div>
           <p class="section-kicker">Daily Pigeon</p>
           <h2>Today's pigeon</h2>
-          <p>Every day a new breed gets the pavement spotlight.</p>
+          <p>Every day a new pigeon gets the pavement spotlight.</p>
         </div>
         <article id="dailyPigeon" class="daily-card">
           <p class="empty">Loading today's pigeon...</p>
@@ -49,32 +48,17 @@
       <section class="main-column">
         <section class="controls" aria-label="PigeonDex controls">
           <label class="search-box">
-            <span>Search breeds</span>
-            <input id="searchInput" type="search" autocomplete="off" placeholder="Fantail, tumbler, pouter...">
+            <span>Search pigeons</span>
+            <input id="searchInput" type="search" autocomplete="off" placeholder="Wood pigeon, houtduif, Columba, fantail...">
           </label>
-          <div class="filter-grid" aria-label="Breed filters">
+          <div class="filter-grid" aria-label="Pigeon filters">
+            <label class="filter-box"><span>Type</span><select id="kindFilter">
+              <option value="">All pigeons</option><option value="species">Wild species</option><option value="breed">Domestic breeds</option>
+            </select></label>
             <label class="filter-box">
               <span>Origin</span>
               <select id="originFilter">
                 <option value="">All origins</option>
-              </select>
-            </label>
-            <label class="filter-box">
-              <span>Size</span>
-              <select id="sizeFilter">
-                <option value="">All sizes</option>
-              </select>
-            </label>
-            <label class="filter-box">
-              <span>Temperament</span>
-              <select id="temperamentFilter">
-                <option value="">All temperaments</option>
-              </select>
-            </label>
-            <label class="filter-box">
-              <span>Flight</span>
-              <select id="flightFilter">
-                <option value="">All flight types</option>
               </select>
             </label>
           </div>
@@ -83,7 +67,7 @@
           <button id="clearFiltersButton" type="button">Clear filters</button>
         </section>
 
-        <section id="detailPanel" class="detail-panel" aria-label="Breed detail"></section>
+        <section id="detailPanel" class="detail-panel" aria-label="Pigeon detail"></section>
 
         <section class="rate-panel" aria-label="Rate My Pigeon">
           <div>
@@ -100,23 +84,23 @@
           </article>
         </section>
 
-        <section class="compare-panel" aria-label="Breed comparison">
+        <section class="compare-panel" aria-label="Pigeon comparison">
           <div>
-            <h2>Breed comparison</h2>
-            <p>Select up to two breeds from the cards to compare them here.</p>
+            <h2>Pigeon comparison</h2>
+            <p>Select up to two pigeons from the cards to compare them here.</p>
           </div>
           <div id="compareGrid" class="compare-grid"></div>
         </section>
 
-        <section class="status" id="status" role="status">Loading pigeon breeds from live APIs...</section>
-        <section class="breed-grid" id="breedGrid" aria-label="Pigeon breed results"></section>
+        <section class="status" id="status" role="status">Loading the pigeon catalogue...</section>
+        <section class="breed-grid" id="breedGrid" aria-label="Pigeon results"></section>
       </section>
 
       <aside class="battle-panel side-panel" aria-label="Pigeon Battle Arena">
         <div>
           <p class="section-kicker">Pigeon Battle Arena</p>
           <h2>Absolutely useless. Therefore amazing.</h2>
-          <p>Choose two pigeons with Prepare for battle, then press Fight.</p>
+          <p>Choose two pigeons with Prepare for battle, then press Fight. Scores are fictional game stats.</p>
         </div>
         <button id="fightButton" class="fight-button" type="button" disabled>Fight</button>
         <div class="battle-slots" id="battleSlots"></div>
@@ -131,6 +115,7 @@
       </aside>
     </main>
 
+    <script src="catalog-ui.js"></script>
     <script src="pigeondex.js"></script>
   </body>
 </html>

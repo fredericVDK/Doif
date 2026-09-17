@@ -2,19 +2,34 @@ const http = require("http");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const { fetchBirdnetSpecies } = require("./lib/birdnet");
+const { createCatalog } = require("./lib/catalog");
+
+function loadLocalEnvironment() {
+  const envPath = path.join(__dirname, ".env");
+  if (!fs.existsSync(envPath)) return;
+
+  for (const line of fs.readFileSync(envPath, "utf8").split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Z][A-Z0-9_]*)\s*=\s*(.*)\s*$/);
+    if (!match || process.env[match[1]] !== undefined) continue;
+
+    const value = match[2].replace(/^(['"])(.*)\1$/, "$2");
+    process.env[match[1]] = value;
+  }
+}
+
+loadLocalEnvironment();
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "public");
 const WIKI_API = "https://en.wikipedia.org/w/api.php";
 const WIKIDATA_API = "https://www.wikidata.org/w/api.php";
-const COMMONS_API = "https://commons.wikimedia.org/w/api.php";
 const COMMONS_FILE = "https://commons.wikimedia.org/wiki/Special:FilePath/";
 const FALLBACK_IMAGE = "assets/pigeon-hero-wide.png";
 const LIST_PAGE = "List_of_pigeon_breeds";
-const MAX_INITIAL_BREEDS = 260;
-const PAGE_BATCH_SIZE = 35;
+// TextExtracts permits at most 20 introductory extracts per request.
+const PAGE_BATCH_SIZE = 20;
 const BREED_CACHE_TTL = 1000 * 60 * 60 * 6;
-const BREED_CACHE_VERSION = 2;
 const MISSING_SOURCE = "Not listed in source";
 const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, "data", "app-db.json");
 const FALLBACK_DATA_FILE = path.join(os.tmpdir(), "pigeon-crumbs-app-db.json");
@@ -25,17 +40,15 @@ const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID || "";
 const AIRTABLE_BREEDS_TABLE = process.env.AIRTABLE_BREEDS_TABLE || "Breeds";
 const AIRTABLE_CACHE_TABLE = process.env.AIRTABLE_CACHE_TABLE || "Cache";
 const AIRTABLE_DRAWINGS_TABLE = process.env.AIRTABLE_DRAWINGS_TABLE || "Drawings";
+const AIRTABLE_SCORES_TABLE = process.env.AIRTABLE_SCORES_TABLE || "Scores";
 const AIRTABLE_WIKIDATA_FIELD = process.env.AIRTABLE_WIKIDATA_FIELD || "WikiDataId";
 const AIRTABLE_CACHED_AT_FIELD = process.env.AIRTABLE_CACHED_AT_FIELD || "CacheAt";
-let breedCache = {
-  expiresAt: 0,
-  data: null,
-  pending: null
-};
 let activeDataFile = DATA_FILE;
 let appDb = loadDatabase();
 const rateLimitBuckets = new Map();
 const allowedRootFiles = new Set([
+  "catalog-ui.js",
+  "catalog-ui.css",
   "index.html",
   "styles.css",
   "script.js",
@@ -253,6 +266,7 @@ function apiUrl(base, params) {
 
 async function fetchJson(url) {
   const response = await fetch(url, {
+    signal: AbortSignal.timeout(12000),
     headers: {
       "accept": "application/json",
       "user-agent": "PigeonDex/1.0 (https://doif-eta.vercel.app; pigeon breed education project)"
@@ -274,38 +288,30 @@ function titleToId(title) {
   return normalizeTitle(title).toLowerCase();
 }
 
-function extractTitlesFromList(html) {
-  const matches = [...html.matchAll(/<a\s+[^>]*href="\/wiki\/[^"]+"[^>]*title="([^"]+)"/g)];
-  const ignored = new Set([
-    "Columba livia",
-    "Domestic pigeon",
-    "Fancy pigeon",
-    "Rock dove",
-    "Pigeon keeping",
-    "Pigeon racing",
-    "List of pigeon breeds"
-  ]);
-
-  return matches
-    .map((match) => normalizeTitle(match[1].replace(/&amp;/g, "&").replace(/&#039;/g, "'")))
-    .filter((title) => !ignored.has(title))
-    .filter((title) => !title.includes(":"))
-    .filter((title, index, list) => list.indexOf(title) === index)
-    .slice(0, MAX_INITIAL_BREEDS);
+function extractBreedEntries(wikitext) {
+  const section = wikitext.split(/^==\s*A\s*==\s*$/m)[1]?.split(/^==\s*References\s*==/m)[0];
+  if (!section) throw new Error("Wikipedia breed list structure changed");
+  const clean = section.replace(/<ref\b[^>]*\/\s*>/gi, "")
+    .replace(/<ref\b[^>]*>[\s\S]*?<\/ref>/gi, "")
+    .replace(/<gallery\b[^>]*>[\s\S]*?<\/gallery>/gi, "")
+    .replace(/\[\[([\s\S]*?)\]\]/g, (_, link) => "[[" + link.replace(/\s+/g, " ") + "]]");
+  const entries = new Map();
+  for (const match of clean.matchAll(/^\*+\s*([^\n]+)/gm)) {
+    const line = match[1].trim();
+    const link = line.match(/^\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/);
+    const title = normalizeTitle(link ? link[1] : line.split(/[=({<]/)[0]);
+    const name = normalizeTitle(link ? link[2] || link[1] : title);
+    if (!title || title.includes(":") || title.startsWith("[")) continue;
+    entries.set(titleToId(title), { title, name, linked: Boolean(link) });
+  }
+  return [...entries.values()];
 }
 
-async function fetchBreedTitles() {
-  const data = await fetchJson(
-    apiUrl(WIKI_API, {
-      action: "parse",
-      page: LIST_PAGE,
-      prop: "text",
-      format: "json",
-      origin: "*"
-    })
-  );
-
-  return extractTitlesFromList(data.parse.text["*"]);
+async function fetchBreedEntries() {
+  const data = await fetchJson(apiUrl(WIKI_API, {
+    action: "parse", page: LIST_PAGE, prop: "wikitext", format: "json"
+  }));
+  return extractBreedEntries(data.parse.wikitext["*"]);
 }
 
 function chunks(items, size) {
@@ -318,15 +324,16 @@ function chunks(items, size) {
   return grouped;
 }
 
-async function fetchWikipediaPages(titles) {
+async function fetchWikipediaPages(titles, requestJson = fetchJson) {
   const pages = [];
 
   for (const titleBatch of chunks(titles, PAGE_BATCH_SIZE)) {
-    const data = await fetchJson(
+    const data = await requestJson(
       apiUrl(WIKI_API, {
         action: "query",
         prop: "extracts|pageimages|pageprops|info",
         exintro: "1",
+        exlimit: "max",
         explaintext: "1",
         redirects: "1",
         inprop: "url",
@@ -340,9 +347,16 @@ async function fetchWikipediaPages(titles) {
 
     pages.push(
       ...Object.values(data.query.pages)
-        .filter((page) => !page.missing)
+        .filter((page) => !("missing" in page) && !("invalid" in page))
         .map((page) => ({
           pageId: page.pageid,
+          aliases: titleBatch.filter(title => {
+            let resolved = title;
+            for (const change of [...(data.query.normalized || []), ...(data.query.redirects || [])]) {
+              if (change.from === resolved) resolved = change.to;
+            }
+            return resolved === page.title;
+          }),
           title: page.title,
           extract: page.extract || "",
           sourceUrl: page.fullurl,
@@ -420,50 +434,6 @@ async function fetchLabels(ids) {
   return labels;
 }
 
-function inferOriginFromText(text) {
-  const patterns = [
-    /\b(?:originated|developed|created|bred|comes|came)\s+(?:in|from)\s+([A-Z][A-Za-z .'-]+?)(?:,|\.|;|\s+during|\s+in\s+the|\s+and\b)/,
-    /\b(?:from|of)\s+([A-Z][A-Za-z .'-]+?)(?:,|\.|;|\s+and\b)/
-  ];
-
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-
-    if (match?.[1] && match[1].length < 36) {
-      return match[1].replace(/\bthe\b/gi, "").trim();
-    }
-  }
-
-  return "";
-}
-
-function inferSize(text) {
-  const lower = text.toLowerCase();
-
-  if (/\b(giant|large|heavy|runt|king pigeon|mondain|strasser)\b/.test(lower)) return "Large";
-  if (/\b(small|short-faced|pigmy|figurita|owl|movchen|frill)\b/.test(lower)) return "Small";
-  if (/\b(medium|homer|racer|carrier|dragoon|trumpeter|pouter|cropper)\b/.test(lower)) return "Medium";
-  return MISSING_SOURCE;
-}
-
-function inferFlight(text) {
-  const lower = text.toLowerCase();
-
-  if (/\b(highflyer|highflier|tippler|racing|racer|homer|flight)\b/.test(lower)) return "Strong flyer";
-  if (/\b(tumbler|roller|performing)\b/.test(lower)) return "Acrobatic flyer";
-  if (/\b(show|fancy|pouter|cropper|fantail|king|runt)\b/.test(lower)) return "Mostly show/fancy";
-  return MISSING_SOURCE;
-}
-
-function inferTemperament(text) {
-  const lower = text.toLowerCase();
-
-  if (/\b(gentle|docile|calm|friendly|quiet)\b/.test(lower)) return "Calm";
-  if (/\b(active|alert|energetic|performing|flying|racing|tumbler|roller)\b/.test(lower)) return "Active";
-  if (/\b(show|fancy|exhibition|ornamental)\b/.test(lower)) return "Kept for exhibition";
-  return MISSING_SOURCE;
-}
-
 function extractFact(extract) {
   const sentences = extract
     .replace(/\s+/g, " ")
@@ -493,192 +463,78 @@ function sortBreeds(breeds) {
   });
 }
 
-async function findWikipediaSearchImage(title) {
-  try {
-    const data = await fetchJson(
-      apiUrl(WIKI_API, {
-        action: "query",
-        generator: "search",
-        gsrsearch: `${title} pigeon`,
-        gsrlimit: "1",
-        prop: "pageimages",
-        piprop: "thumbnail|original",
-        pithumbsize: "900",
-        format: "json",
-        origin: "*"
-      })
-    );
-    const page = Object.values(data.query?.pages || {})[0];
-
-    return page?.thumbnail?.source || page?.original?.source || "";
-  } catch (error) {
-    console.warn(`Could not find Wikipedia search image for ${title}`, error);
-    return "";
+async function buildDomesticBreeds() {
+  const entries = await fetchBreedEntries();
+  const pages = await fetchWikipediaPages(entries.filter(entry => entry.linked).map(entry => entry.title));
+  const details = await fetchWikidataDetails(pages.map(page => page.wikidataId)).catch(() => new Map());
+  const origins = await fetchLabels([...details.values()].flatMap(detail => detail.originIds)).catch(() => new Map());
+  const byTitle = new Map();
+  for (const page of pages) {
+    for (const title of [page.title, ...page.aliases]) byTitle.set(titleToId(title), page);
   }
-}
-
-async function findCommonsImageByQuery(title, query) {
-  try {
-    const data = await fetchJson(
-      apiUrl(COMMONS_API, {
-        action: "query",
-        generator: "search",
-        gsrsearch: query,
-        gsrnamespace: "6",
-        gsrlimit: "1",
-        prop: "imageinfo",
-        iiprop: "url",
-        iiurlwidth: "900",
-        format: "json",
-        origin: "*"
-      })
-    );
-    const page = Object.values(data.query?.pages || {})[0];
-
-    return page?.imageinfo?.[0]?.thumburl || page?.imageinfo?.[0]?.url || "";
-  } catch (error) {
-    console.warn(`Could not find Commons image for ${title}`, error);
-    return "";
-  }
-}
-
-async function findCommonsImage(title) {
-  const queries = [
-    `${title} pigeon`,
-    `"${title}"`,
-    `${title} breed`
-  ];
-
-  for (const query of queries) {
-    const image = await findCommonsImageByQuery(title, query);
-
-    if (image) return image;
-  }
-
-  return "";
-}
-
-async function mapLimit(items, limit, worker) {
-  const results = [];
-  let nextIndex = 0;
-
-  async function runNext() {
-    const index = nextIndex;
-    nextIndex += 1;
-
-    if (index >= items.length) return;
-
-    results[index] = await worker(items[index], index);
-    await runNext();
-  }
-
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, runNext));
-  return results;
-}
-
-async function enrichBreedImages(breeds) {
-  const missingImages = breeds.filter((breed) => !hasSpecificImage(breed));
-
-  await mapLimit(missingImages, 5, async (breed) => {
-    const image = await findWikipediaSearchImage(breed.name) || await findCommonsImage(breed.name);
-
-    if (image) {
-      breed.image = image;
-      breed.hasRealImage = true;
-      breed.imageSource = "search";
-    }
+  const records = entries.map(entry => {
+    const page = byTitle.get(titleToId(entry.title));
+    const detail = details.get(page?.wikidataId);
+    const origin = detail?.originIds?.map(id => origins.get(id)).filter(Boolean).join(", ");
+    const image = page ? imageFor(page, detail) : FALLBACK_IMAGE;
+    const sourceUrl = page?.sourceUrl || "https://en.wikipedia.org/wiki/List_of_pigeon_breeds";
+    return { id: titleToId(page?.title || entry.title), name: page?.title || entry.name,
+      aliases: [...new Set([entry.name, entry.title, ...(page?.aliases || [])])],
+      kind: "breed", source: "Wikimedia", origin: origin || MISSING_SOURCE,
+      size: MISSING_SOURCE, flight: MISSING_SOURCE, temperament: MISSING_SOURCE,
+      fact: extractFact(page?.extract || ""), history: page?.extract || "",
+      image, hasRealImage: image !== FALLBACK_IMAGE, imageSource: image !== FALLBACK_IMAGE ? "Wikimedia" : "fallback",
+      sourceUrl, wikidataId: page?.wikidataId || "",
+      fieldSources: { name: "Wikipedia breed list", description: "Wikipedia", ...(origin ? { origin: "Wikidata" } : {}) }
+    };
   });
-
-  return sortBreeds(breeds);
+  return [...new Map(records.map(record => [record.id, record])).values()];
 }
 
-async function buildBreeds() {
-  const titles = await fetchBreedTitles();
-  const pages = await fetchWikipediaPages(titles);
-  const wdDetails = await fetchWikidataDetails(pages.map((page) => page.wikidataId));
-  const allOriginIds = [...wdDetails.values()].flatMap((detail) => detail.originIds);
-  const originLabels = await fetchLabels(allOriginIds);
-
-  const breeds = sortBreeds(
-    pages.map((page) => {
-      const wdDetail = wdDetails.get(page.wikidataId);
-      const origin = wdDetail?.originIds?.map((id) => originLabels.get(id)).filter(Boolean).join(", ");
-      const text = `${page.title}. ${page.extract}`;
-      const image = imageFor(page, wdDetail);
-
-      return {
-        id: titleToId(page.title),
-        name: page.title,
-        origin: origin || inferOriginFromText(text) || MISSING_SOURCE,
-        size: inferSize(text),
-        flight: inferFlight(text),
-        temperament: inferTemperament(text),
-        fact: extractFact(page.extract),
-        history: page.extract || extractFact(page.extract),
-        image,
-        hasRealImage: Boolean(image && image !== FALLBACK_IMAGE),
-        imageSource: image && image !== FALLBACK_IMAGE ? "api" : "fallback",
-        sourceUrl: page.sourceUrl,
-        wikidataId: page.wikidataId
-      };
-    })
-  );
-
-  return enrichBreedImages(breeds);
+function readCatalogSnapshot(name) {
+  try {
+    const snapshot = JSON.parse(fs.readFileSync(path.join(__dirname, "data", name), "utf8"));
+    // Serve the bundled catalogue immediately on cold starts. Long imports run
+    // via refresh:catalog; long-lived servers also refresh after this interval.
+    return { ...snapshot, expiresAt: Date.now() + BREED_CACHE_TTL };
+  }
+  catch { return undefined; }
 }
 
-async function getCachedBreeds() {
-  const now = Date.now();
-
-  if (breedCache.data && breedCache.expiresAt > now) return breedCache.data;
-  if (breedCache.pending) return breedCache.pending;
-
-  const airtableCache = await readAirtableBreedCache();
-
-  if (airtableCache?.data?.length) {
-    breedCache = {
-      data: airtableCache.data,
-      expiresAt: airtableCache.expiresAt,
-      pending: null
-    };
-    appDb.breedCache = airtableCache;
-    saveDatabase();
-    return airtableCache.data;
+const getCatalog = createCatalog({
+  loadSpecies: () => fetchBirdnetSpecies(),
+  loadDomestic: async () => {
+    const [fresh, stored] = await Promise.all([buildDomesticBreeds(), readAirtableBreedCache()]);
+    const overrides = new Map((stored?.data || []).map(row => [row.id, row]));
+    // Optional curated fields enrich known breeds without importing old gallery
+    // captions or truncating the complete list to an older Airtable cache.
+    return { records: fresh.map(row => {
+      const override = overrides.get(row.id);
+      if (!override) return row;
+      const enriched = { ...row, fieldSources: { ...row.fieldSources } };
+      for (const key of ["origin", "size", "flight", "temperament", "fact", "history"]) {
+        if (override[key] && override[key] !== MISSING_SOURCE) {
+          enriched[key] = override[key];
+          enriched.fieldSources[key] = "Airtable";
+        }
+      }
+      return enriched;
+    }) };
+  },
+  readSaved: () => appDb.catalogCache,
+  save: (sources) => { appDb.catalogCache = sources; saveDatabase(); },
+  snapshots: {
+    birdnet: readCatalogSnapshot("birdnet-pigeons.json"),
+    domestic: readCatalogSnapshot("domestic-pigeons.json") || {
+      records: appDb.breedCache.data || [], cachedAt: appDb.breedCache.cachedAt,
+      expiresAt: appDb.breedCache.expiresAt, status: "snapshot"
+    }
   }
+});
 
-  if (appDb.breedCache.version === BREED_CACHE_VERSION && appDb.breedCache.data?.length && appDb.breedCache.expiresAt > now) {
-    breedCache = {
-      data: appDb.breedCache.data,
-      expiresAt: appDb.breedCache.expiresAt,
-      pending: null
-    };
-    return appDb.breedCache.data;
-  }
-
-  breedCache.pending = buildBreeds()
-    .then((data) => {
-      const expiresAt = Date.now() + BREED_CACHE_TTL;
-      breedCache = {
-        data,
-        expiresAt,
-        pending: null
-      };
-      appDb.breedCache = {
-        version: BREED_CACHE_VERSION,
-        cachedAt: nowIso(),
-        expiresAt,
-        data
-      };
-      saveDatabase();
-      writeAirtableBreedCache(data, expiresAt);
-      return data;
-    })
-    .catch((error) => {
-      breedCache.pending = null;
-      throw error;
-    });
-
-  return breedCache.pending;
+function catalogCacheControl(catalog) {
+  const seconds = Math.max(0, Math.floor((catalog.expiresAt - Date.now()) / 1000));
+  return `public, max-age=0, s-maxage=${seconds}`;
 }
 
 function sendJson(response, statusCode, data, headers = {}) {
@@ -696,7 +552,11 @@ function airtableConfigured() {
 function airtableTableUrl(tableName, params = {}) {
   const url = new URL(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tableName)}`);
   Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== "") url.searchParams.set(key, value);
+    if (Array.isArray(value)) {
+      value.forEach((item) => url.searchParams.append(key, item));
+    } else if (value !== undefined && value !== "") {
+      url.searchParams.set(key, value);
+    }
   });
   return url;
 }
@@ -712,7 +572,9 @@ async function airtableRequest(tableName, options = {}, params = {}) {
   });
 
   if (!response.ok) {
-    throw new Error(`Airtable request failed: ${response.status}`);
+    const error = new Error(`Airtable request failed: ${response.status}`);
+    error.statusCode = 502;
+    throw error;
   }
 
   return response.status === 204 ? {} : response.json();
@@ -1009,7 +871,7 @@ async function addDrawingSubmission(body, request) {
   return drawing;
 }
 
-function leaderboardEntries(limit = 10) {
+function localLeaderboardEntries(limit = 10) {
   refreshDatabaseFromStorage();
 
   return appDb.leaderboard
@@ -1022,7 +884,40 @@ function leaderboardEntries(limit = 10) {
     .slice(0, limit);
 }
 
-function addLeaderboardScore(nickname, amount, session, request) {
+function leaderboardFromScoreRecords(records, limit = 10) {
+  const totals = new Map();
+
+  records.forEach((record) => {
+    const fields = record.fields || {};
+    const nickname = cleanNickname(fields.Nickname);
+    const amount = Math.max(0, Math.floor(Number(fields.Amount) || 0));
+    if (!amount) return;
+
+    const key = nickname.toLocaleLowerCase("en");
+    const createdAt = fields.CreatedAt || record.createdTime || "";
+    const existing = totals.get(key);
+
+    if (existing) {
+      existing.feeds += amount;
+      if (createdAt > existing.updatedAt) existing.updatedAt = createdAt;
+    } else {
+      totals.set(key, { nickname, feeds: amount, updatedAt: createdAt });
+    }
+  });
+
+  return [...totals.values()]
+    .sort((left, right) => right.feeds - left.feeds || left.nickname.localeCompare(right.nickname))
+    .slice(0, limit);
+}
+
+async function leaderboardEntries(limit = 10) {
+  if (!airtableConfigured()) return localLeaderboardEntries(limit);
+
+  const records = await listAirtableRecords(AIRTABLE_SCORES_TABLE);
+  return leaderboardFromScoreRecords(records, limit);
+}
+
+async function addLeaderboardScore(nickname, amount, session, request) {
   refreshDatabaseFromStorage();
 
   const storedSession = appDb.sessions.find((entry) => entry.id === session.id) || session;
@@ -1031,37 +926,93 @@ function addLeaderboardScore(nickname, amount, session, request) {
     appDb.sessions.push(storedSession);
   }
 
-  const existing = appDb.leaderboard.find((entry) => entry.nickname.toLowerCase() === nickname.toLowerCase());
+  let updated;
 
-  if (existing) {
-    existing.feeds += amount;
-    existing.updatedAt = nowIso();
-    existing.sessionId = storedSession.id;
-  } else {
-    appDb.leaderboard.push({
-      nickname,
-      feeds: amount,
-      sessionId: storedSession.id,
-      createdAt: nowIso(),
-      updatedAt: nowIso()
+  if (airtableConfigured()) {
+    await airtableRequest(AIRTABLE_SCORES_TABLE, {
+      method: "POST",
+      body: JSON.stringify({
+        records: [{
+          fields: {
+            SubmissionId: makeId("score"),
+            Nickname: nickname,
+            Amount: amount,
+            SessionId: storedSession.id,
+            CreatedAt: nowIso()
+          }
+        }],
+        typecast: true
+      })
     });
+
+    const allEntries = await leaderboardEntries(Number.MAX_SAFE_INTEGER);
+    updated = allEntries.find((entry) => entry.nickname.toLowerCase() === nickname.toLowerCase());
+  } else {
+    const existing = appDb.leaderboard.find((entry) => entry.nickname.toLowerCase() === nickname.toLowerCase());
+
+    if (existing) {
+      existing.feeds += amount;
+      existing.updatedAt = nowIso();
+      existing.sessionId = storedSession.id;
+      updated = existing;
+    } else {
+      updated = {
+        nickname,
+        feeds: amount,
+        sessionId: storedSession.id,
+        createdAt: nowIso(),
+        updatedAt: nowIso()
+      };
+      appDb.leaderboard.push(updated);
+    }
   }
 
   storedSession.totalFeeds += amount;
   storedSession.submissions += 1;
   storedSession.updatedAt = nowIso();
-  logEvent("feed_submitted", { nickname, amount, total: existing ? existing.feeds : amount }, request);
+  logEvent("feed_submitted", { nickname, amount, total: updated?.feeds || amount }, request);
   saveDatabase();
-  return appDb.leaderboard.find((entry) => entry.nickname.toLowerCase() === nickname.toLowerCase());
+  return updated || { nickname, feeds: amount };
 }
 
-function deleteLeaderboardEntry(nickname) {
+async function deleteLeaderboardEntry(nickname) {
+  if (airtableConfigured()) {
+    const records = await listAirtableRecords(AIRTABLE_SCORES_TABLE);
+    const recordIds = records
+      .filter((record) => cleanNickname(record.fields?.Nickname).toLowerCase() === nickname.toLowerCase())
+      .map((record) => record.id);
+
+    for (const batch of chunks(recordIds, 10)) {
+      await airtableRequest(AIRTABLE_SCORES_TABLE, { method: "DELETE" }, { "records[]": batch });
+    }
+
+    return recordIds.length > 0;
+  }
+
   refreshDatabaseFromStorage();
 
   const before = appDb.leaderboard.length;
   appDb.leaderboard = appDb.leaderboard.filter((entry) => entry.nickname !== nickname);
   saveDatabase();
   return appDb.leaderboard.length !== before;
+}
+
+async function resetLeaderboard() {
+  if (airtableConfigured()) {
+    const records = await listAirtableRecords(AIRTABLE_SCORES_TABLE);
+
+    for (const batch of chunks(records.map((record) => record.id), 10)) {
+      await airtableRequest(AIRTABLE_SCORES_TABLE, { method: "DELETE" }, { "records[]": batch });
+    }
+
+    return records.length;
+  }
+
+  refreshDatabaseFromStorage();
+  const removed = appDb.leaderboard.length;
+  appDb.leaderboard = [];
+  saveDatabase();
+  return removed;
 }
 
 function readJsonBody(request, maxBytes = 4096) {
@@ -1099,7 +1050,7 @@ function apiDocs() {
       "Community pigeon drawing uploads",
       "Server-side PigeonDex cache",
       "Optional Airtable breed storage",
-      "Wikipedia/Commons image enrichment for missing breed photos",
+      "BirdNET species metadata and attributed photos alongside domestic breeds",
       "Protected admin moderation"
     ],
     auth: {
@@ -1109,7 +1060,7 @@ function apiDocs() {
       { method: "GET", path: "/api/session", description: "Create or return the current anonymous session." },
       { method: "GET", path: "/api/leaderboard", description: "Return the top pigeon feeders." },
       { method: "POST", path: "/api/feed", description: "Submit a completed feeding round.", body: { nickname: "string", amount: "number" } },
-      { method: "GET", path: "/api/breeds", description: "Return cached PigeonDex breed data from Wikimedia/Wikidata." },
+      { method: "GET", path: "/api/breeds", description: "Return BirdNET pigeon species and supplemental domestic breeds, with source status and counts." },
       { method: "GET", path: "/api/breeds/:id", description: "Return one cached breed by id." },
       { method: "GET", path: "/api/drawings", description: "Return stored pigeon drawings." },
       { method: "POST", path: "/api/drawings", description: "Submit a pigeon drawing image for storage.", body: { artist: "string", title: "string", imageDataUrl: "base64 data URL" } },
@@ -1225,11 +1176,14 @@ function handleRequest(request, response) {
 
     if (!requireRateLimit(request, response, "leaderboard", 120, 60_000)) return;
 
-    sendJson(response, 200, {
-      leaderboard: leaderboardEntries(10)
-    }, {
-      "cache-control": "no-store"
-    });
+    leaderboardEntries(10)
+      .then((leaderboard) => sendJson(response, 200, { leaderboard }, {
+        "cache-control": "no-store"
+      }))
+      .catch((error) => sendJson(response, error.statusCode || 500, {
+        error: "Could not load the leaderboard.",
+        message: error.message
+      }));
     return;
   }
 
@@ -1244,21 +1198,23 @@ function handleRequest(request, response) {
     const session = findOrCreateSession(request, response);
 
     readJsonBody(request)
-      .then((body) => {
+      .then(async (body) => {
         const nickname = cleanNickname(body.nickname);
         const amount = Math.max(1, Math.floor(Number(body.amount) || 1));
-        const updated = addLeaderboardScore(nickname, amount, session, request);
+        const updated = await addLeaderboardScore(nickname, amount, session, request);
+        const leaderboard = await leaderboardEntries(10);
         sendJson(response, 200, {
           nickname,
           feeds: updated.feeds,
           sessionId: session.id,
-          leaderboard: leaderboardEntries(10)
+          leaderboard
         }, {
           "cache-control": "no-store"
         });
       })
-      .catch((error) => sendJson(response, 400, {
-        error: error.message
+      .catch((error) => sendJson(response, error.statusCode || 400, {
+        error: error.statusCode ? "Could not save the score." : error.message,
+        ...(error.statusCode ? { message: error.message } : {})
       }));
     return;
   }
@@ -1331,14 +1287,11 @@ function handleRequest(request, response) {
 
     if (!requireRateLimit(request, response, "breeds", 60, 60_000)) return;
 
-    getCachedBreeds()
-      .then((breeds) => sendJson(response, 200, {
-        cachedAt: appDb.breedCache.cachedAt || new Date(Date.now() - BREED_CACHE_TTL + Math.max(0, breedCache.expiresAt - Date.now())).toISOString(),
-        expiresAt: new Date(breedCache.expiresAt || appDb.breedCache.expiresAt).toISOString(),
-        count: breeds.length,
-        breeds
+    getCatalog()
+      .then((catalog) => sendJson(response, 200, {
+        ...catalog, expiresAt: new Date(catalog.expiresAt).toISOString()
       }, {
-        "cache-control": "s-maxage=21600, stale-while-revalidate=86400"
+        "cache-control": catalogCacheControl(catalog)
       }))
       .catch((error) => sendJson(response, 502, {
         error: "Could not load pigeon breed cache.",
@@ -1356,9 +1309,9 @@ function handleRequest(request, response) {
     if (!requireRateLimit(request, response, "breed-detail", 120, 60_000)) return;
 
     const id = decodeURIComponent(url.pathname.replace("/api/breeds/", ""));
-    getCachedBreeds()
-      .then((breeds) => {
-        const breed = breeds.find((entry) => entry.id === id);
+    getCatalog()
+      .then((catalog) => {
+        const breed = catalog.breeds.find((entry) => entry.id === id);
 
         if (!breed) {
           sendJson(response, 404, { error: "Breed not found." });
@@ -1366,7 +1319,7 @@ function handleRequest(request, response) {
         }
 
         sendJson(response, 200, { breed }, {
-          "cache-control": "s-maxage=21600, stale-while-revalidate=86400"
+          "cache-control": catalogCacheControl(catalog)
         });
       })
       .catch((error) => sendJson(response, 502, {
@@ -1384,12 +1337,17 @@ function handleRequest(request, response) {
 
     if (!requireAdmin(request, response)) return;
 
-    sendJson(response, 200, {
-      leaderboard: leaderboardEntries(100),
-      storage: activeDataFile
-    }, {
-      "cache-control": "no-store"
-    });
+    leaderboardEntries(100)
+      .then((leaderboard) => sendJson(response, 200, {
+        leaderboard,
+        storage: airtableConfigured() ? `Airtable: ${AIRTABLE_SCORES_TABLE}` : activeDataFile
+      }, {
+        "cache-control": "no-store"
+      }))
+      .catch((error) => sendJson(response, error.statusCode || 500, {
+        error: "Could not load the leaderboard.",
+        message: error.message
+      }));
     return;
   }
 
@@ -1402,14 +1360,19 @@ function handleRequest(request, response) {
     if (!requireAdmin(request, response)) return;
 
     const nickname = decodeURIComponent(url.pathname.replace("/api/admin/leaderboard/", ""));
-    const deleted = deleteLeaderboardEntry(nickname);
-    logEvent("admin_deleted_leaderboard_entry", { nickname, deleted }, request);
-    sendJson(response, deleted ? 200 : 404, {
-      deleted,
-      leaderboard: leaderboardEntries(100)
-    }, {
-      "cache-control": "no-store"
-    });
+    deleteLeaderboardEntry(nickname)
+      .then(async (deleted) => {
+        logEvent("admin_deleted_leaderboard_entry", { nickname, deleted }, request);
+        saveDatabase();
+        const leaderboard = await leaderboardEntries(100);
+        sendJson(response, deleted ? 200 : 404, { deleted, leaderboard }, {
+          "cache-control": "no-store"
+        });
+      })
+      .catch((error) => sendJson(response, error.statusCode || 500, {
+        error: "Could not delete the leaderboard entry.",
+        message: error.message
+      }));
     return;
   }
 
@@ -1421,17 +1384,18 @@ function handleRequest(request, response) {
 
     if (!requireAdmin(request, response)) return;
 
-    refreshDatabaseFromStorage();
-    const removed = appDb.leaderboard.length;
-    appDb.leaderboard = [];
-    logEvent("admin_reset_leaderboard", { removed }, request);
-    saveDatabase();
-    sendJson(response, 200, {
-      removed,
-      leaderboard: []
-    }, {
-      "cache-control": "no-store"
-    });
+    resetLeaderboard()
+      .then((removed) => {
+        logEvent("admin_reset_leaderboard", { removed }, request);
+        saveDatabase();
+        sendJson(response, 200, { removed, leaderboard: [] }, {
+          "cache-control": "no-store"
+        });
+      })
+      .catch((error) => sendJson(response, error.statusCode || 500, {
+        error: "Could not reset the leaderboard.",
+        message: error.message
+      }));
     return;
   }
 
@@ -1473,3 +1437,8 @@ if (require.main === module) {
 }
 
 module.exports = handleRequest;
+
+module.exports.buildDomesticBreeds = buildDomesticBreeds;
+module.exports.extractBreedEntries = extractBreedEntries;
+module.exports.fetchWikipediaPages = fetchWikipediaPages;
+module.exports.leaderboardFromScoreRecords = leaderboardFromScoreRecords;

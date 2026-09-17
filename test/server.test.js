@@ -10,6 +10,7 @@ process.env.AIRTABLE_API_KEY = "";
 process.env.AIRTABLE_BASE_ID = "";
 
 const handleRequest = require("../server");
+const { leaderboardFromScoreRecords } = require("../server");
 
 function createTestServer() {
   const server = http.createServer(handleRequest);
@@ -30,6 +31,19 @@ async function requestJson(baseUrl, pathName, options = {}) {
   const data = await response.json();
   return { response, data };
 }
+
+test("Airtable score submissions are aggregated by nickname", () => {
+  const leaderboard = leaderboardFromScoreRecords([
+    { createdTime: "2026-01-01T10:00:00.000Z", fields: { Nickname: "Sky", Amount: 10 } },
+    { createdTime: "2026-01-01T11:00:00.000Z", fields: { Nickname: "sky", Amount: 7 } },
+    { createdTime: "2026-01-01T12:00:00.000Z", fields: { Nickname: "Wing", Amount: 12 } }
+  ]);
+
+  assert.deepEqual(leaderboard.map(({ nickname, feeds }) => ({ nickname, feeds })), [
+    { nickname: "Sky", feeds: 17 },
+    { nickname: "Wing", feeds: 12 }
+  ]);
+});
 
 test("session endpoint creates an anonymous session", async () => {
   const server = await createTestServer();
