@@ -37,12 +37,8 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "dev-admin";
 const SESSION_COOKIE = "pigeon_session";
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY || "";
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID || "";
-const AIRTABLE_BREEDS_TABLE = process.env.AIRTABLE_BREEDS_TABLE || "Breeds";
-const AIRTABLE_CACHE_TABLE = process.env.AIRTABLE_CACHE_TABLE || "Cache";
 const AIRTABLE_DRAWINGS_TABLE = process.env.AIRTABLE_DRAWINGS_TABLE || "Drawings";
 const AIRTABLE_SCORES_TABLE = process.env.AIRTABLE_SCORES_TABLE || "Scores";
-const AIRTABLE_WIKIDATA_FIELD = process.env.AIRTABLE_WIKIDATA_FIELD || "WikiDataId";
-const AIRTABLE_CACHED_AT_FIELD = process.env.AIRTABLE_CACHED_AT_FIELD || "CacheAt";
 let activeDataFile = DATA_FILE;
 let appDb = loadDatabase();
 const rateLimitBuckets = new Map();
@@ -449,20 +445,6 @@ function imageFor(page, wdDetail) {
   return FALLBACK_IMAGE;
 }
 
-function hasSpecificImage(breed) {
-  return breed.image && breed.image !== FALLBACK_IMAGE;
-}
-
-function sortBreeds(breeds) {
-  return breeds.sort((a, b) => {
-    const imageDifference = Number(hasSpecificImage(b)) - Number(hasSpecificImage(a));
-
-    if (imageDifference) return imageDifference;
-
-    return a.name.localeCompare(b.name);
-  });
-}
-
 async function buildDomesticBreeds() {
   const entries = await fetchBreedEntries();
   const pages = await fetchWikipediaPages(entries.filter(entry => entry.linked).map(entry => entry.title));
@@ -503,24 +485,7 @@ function readCatalogSnapshot(name) {
 
 const getCatalog = createCatalog({
   loadSpecies: () => fetchBirdnetSpecies(),
-  loadDomestic: async () => {
-    const [fresh, stored] = await Promise.all([buildDomesticBreeds(), readAirtableBreedCache()]);
-    const overrides = new Map((stored?.data || []).map(row => [row.id, row]));
-    // Optional curated fields enrich known breeds without importing old gallery
-    // captions or truncating the complete list to an older Airtable cache.
-    return { records: fresh.map(row => {
-      const override = overrides.get(row.id);
-      if (!override) return row;
-      const enriched = { ...row, fieldSources: { ...row.fieldSources } };
-      for (const key of ["origin", "size", "flight", "temperament", "fact", "history"]) {
-        if (override[key] && override[key] !== MISSING_SOURCE) {
-          enriched[key] = override[key];
-          enriched.fieldSources[key] = "Airtable";
-        }
-      }
-      return enriched;
-    }) };
-  },
+  loadDomestic: async () => ({ records: await buildDomesticBreeds() }),
   readSaved: () => appDb.catalogCache,
   save: (sources) => { appDb.catalogCache = sources; saveDatabase(); },
   snapshots: {
@@ -595,138 +560,6 @@ async function listAirtableRecords(tableName, params = {}) {
   } while (offset);
 
   return records;
-}
-
-function airtableBreedFromRecord(record) {
-  const fields = record.fields || {};
-
-  return {
-    airtableRecordId: record.id,
-    id: fields.Id || "",
-    name: fields.Name || "",
-    origin: fields.Origin || MISSING_SOURCE,
-    size: fields.Size || MISSING_SOURCE,
-    flight: fields.Flight || MISSING_SOURCE,
-    temperament: fields.Temperament || MISSING_SOURCE,
-    fact: fields.Fact || "",
-    history: fields.History || fields.Fact || "",
-    image: fields.Image || FALLBACK_IMAGE,
-    hasRealImage: Boolean(fields.HasRealImage),
-    imageSource: fields.ImageSource || "",
-    sourceUrl: fields.SourceUrl || "",
-    wikidataId: fields[AIRTABLE_WIKIDATA_FIELD] || fields.WikidataId || fields.WikiDataId || ""
-  };
-}
-
-function airtableFieldsFromBreed(breed) {
-  return {
-    Id: breed.id,
-    Name: breed.name,
-    Origin: breed.origin,
-    Size: breed.size,
-    Flight: breed.flight,
-    Temperament: breed.temperament,
-    Fact: breed.fact,
-    History: breed.history,
-    Image: breed.image,
-    HasRealImage: Boolean(breed.hasRealImage),
-    ImageSource: breed.imageSource || "",
-    SourceUrl: breed.sourceUrl,
-    [AIRTABLE_WIKIDATA_FIELD]: breed.wikidataId || ""
-  };
-}
-
-async function readAirtableBreedCache() {
-  if (!airtableConfigured()) return null;
-
-  try {
-    const [metaRecord] = await listAirtableRecords(AIRTABLE_CACHE_TABLE, {
-      filterByFormula: "{Key}='breeds'"
-    });
-
-    if (!metaRecord || Number(metaRecord.fields?.ExpiresAt || 0) <= Date.now()) return null;
-
-    const records = await listAirtableRecords(AIRTABLE_BREEDS_TABLE);
-    const breeds = records
-      .map(airtableBreedFromRecord)
-      .filter((breed) => breed.id && breed.name);
-
-    return breeds.length ? {
-      cachedAt: metaRecord.fields?.[AIRTABLE_CACHED_AT_FIELD] || metaRecord.fields?.CachedAt || metaRecord.fields?.CacheAt || "",
-      expiresAt: Number(metaRecord.fields?.ExpiresAt || 0),
-      data: sortBreeds(breeds)
-    } : null;
-  } catch (error) {
-    console.warn("Could not read Airtable breed cache.", error);
-    return null;
-  }
-}
-
-async function writeAirtableBreedCache(breeds, expiresAt) {
-  if (!airtableConfigured()) return;
-
-  try {
-    const existingRecords = await listAirtableRecords(AIRTABLE_BREEDS_TABLE);
-    const existingById = new Map(
-      existingRecords
-        .filter((record) => record.fields?.Id)
-        .map((record) => [record.fields.Id, record.id])
-    );
-
-    for (const batch of chunks(breeds, 10)) {
-      const creates = [];
-      const updates = [];
-
-      batch.forEach((breed) => {
-        const recordId = existingById.get(breed.id);
-        const fields = airtableFieldsFromBreed(breed);
-
-        if (recordId) {
-          updates.push({ id: recordId, fields });
-        } else {
-          creates.push({ fields });
-        }
-      });
-
-      if (creates.length) {
-        await airtableRequest(AIRTABLE_BREEDS_TABLE, {
-          method: "POST",
-          body: JSON.stringify({ records: creates, typecast: true })
-        });
-      }
-
-      if (updates.length) {
-        await airtableRequest(AIRTABLE_BREEDS_TABLE, {
-          method: "PATCH",
-          body: JSON.stringify({ records: updates, typecast: true })
-        });
-      }
-    }
-
-    const [metaRecord] = await listAirtableRecords(AIRTABLE_CACHE_TABLE, {
-      filterByFormula: "{Key}='breeds'"
-    });
-    const metaFields = {
-      Key: "breeds",
-      [AIRTABLE_CACHED_AT_FIELD]: nowIso(),
-      ExpiresAt: expiresAt,
-      Count: breeds.length
-    };
-
-    if (metaRecord) {
-      await airtableRequest(AIRTABLE_CACHE_TABLE, {
-        method: "PATCH",
-        body: JSON.stringify({ records: [{ id: metaRecord.id, fields: metaFields }], typecast: true })
-      });
-    } else {
-      await airtableRequest(AIRTABLE_CACHE_TABLE, {
-        method: "POST",
-        body: JSON.stringify({ records: [{ fields: metaFields }], typecast: true })
-      });
-    }
-  } catch (error) {
-    console.warn("Could not write Airtable breed cache.", error);
-  }
 }
 
 function cleanNickname(value) {
@@ -1049,7 +882,7 @@ function apiDocs() {
       "Rate-limited leaderboard submissions",
       "Community pigeon drawing uploads",
       "Server-side PigeonDex cache",
-      "Optional Airtable breed storage",
+      "Optional Airtable drawing and leaderboard storage",
       "BirdNET species metadata and attributed photos alongside domestic breeds",
       "Protected admin moderation"
     ],

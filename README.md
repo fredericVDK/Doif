@@ -15,7 +15,7 @@ Made with Codex.
 - BirdNET as the primary species API, supplemented by Wikipedia/Wikidata for domestic breeds.
 - PigeonDex shows only entries with their own photo; the API retains the complete catalogue for future enrichment. Records distinguish species from domestic breeds.
 - Bundled catalogues and independent source caches keep the PigeonDex available during upstream outages.
-- Optional Airtable fields enrich matching domestic breeds.
+- Optional Airtable storage for drawings and permanent leaderboard scores.
 - Lightweight product event logging for feed milestones and score submissions.
 - API docs at `public/api-docs.html` and `/api/docs`.
 - Backend tests using Node's built-in test runner.
@@ -84,32 +84,7 @@ This writes `data/birdnet-pigeons.json` and `data/domestic-pigeons.json`, withou
 
 BirdNET image attribution and license metadata are retained and displayed with original links. Photos without an explicit Creative Commons/public-domain license use a placeholder. License conditions such as noncommercial use still apply; images and descriptions do not inherit a blanket license from the API. Wikipedia descriptions link back to their source. Pigder uses the same catalogue but selects entries with photos for the swipe game.
 
-## Optional Airtable Breed Cache
-
-To keep PigeonDex breeds in Airtable, create a base with two tables.
-
-`Breeds` fields:
-
-- `Id`
-- `Name`
-- `Origin`
-- `Size`
-- `Flight`
-- `Temperament`
-- `Fact`
-- `History`
-- `Image`
-- `HasRealImage`
-- `ImageSource`
-- `SourceUrl`
-- `WikidataId`
-
-`Cache` fields:
-
-- `Key`
-- `CacheAt`
-- `ExpiresAt`
-- `Count`
+## Optional Airtable Storage
 
 Optional `Drawings` table fields:
 
@@ -137,15 +112,9 @@ Then set these environment variables:
 ```text
 AIRTABLE_API_KEY=your-airtable-token
 AIRTABLE_BASE_ID=your-base-id
-AIRTABLE_BREEDS_TABLE=Breeds
-AIRTABLE_CACHE_TABLE=Cache
 AIRTABLE_DRAWINGS_TABLE=Drawings
 AIRTABLE_SCORES_TABLE=Scores
-AIRTABLE_WIKIDATA_FIELD=WikiDataId
-AIRTABLE_CACHED_AT_FIELD=CacheAt
 ```
-
-When the domestic catalogue refreshes, a valid Airtable cache can supplement matching breed IDs with curated origin, size, flight, temperament, fact and history fields. It cannot replace the full species/breed list. The importer does not write external Airtable records.
 
 ## Test
 
