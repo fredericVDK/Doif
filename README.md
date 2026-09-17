@@ -91,7 +91,7 @@ Optional `Drawings` table fields:
 - `Id`
 - `Artist`
 - `Title`
-- `ImageDataUrl`
+- `Image` (attachment)
 - `Status`
 - `IsDrawing`
 - `IsPigeon`
@@ -113,8 +113,11 @@ Then set these environment variables:
 AIRTABLE_API_KEY=your-airtable-token
 AIRTABLE_BASE_ID=your-base-id
 AIRTABLE_DRAWINGS_TABLE=Drawings
+AIRTABLE_DRAWINGS_IMAGE_FIELD=Image
 AIRTABLE_SCORES_TABLE=Scores
 ```
+
+When Airtable is configured, drawing metadata is stored in `Drawings` and the uploaded image is saved in its `Image` attachment field. The gallery reads those Airtable records directly, so drawings remain available across devices and deployments. Without Airtable configuration, local development uses `data/app-db.json`.
 
 ## Test
 

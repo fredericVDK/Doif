@@ -38,6 +38,7 @@ const SESSION_COOKIE = "pigeon_session";
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY || "";
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID || "";
 const AIRTABLE_DRAWINGS_TABLE = process.env.AIRTABLE_DRAWINGS_TABLE || "Drawings";
+const AIRTABLE_DRAWINGS_IMAGE_FIELD = process.env.AIRTABLE_DRAWINGS_IMAGE_FIELD || "Image";
 const AIRTABLE_SCORES_TABLE = process.env.AIRTABLE_SCORES_TABLE || "Scores";
 let activeDataFile = DATA_FILE;
 let appDb = loadDatabase();
@@ -596,7 +597,8 @@ function parseImageDataUrl(value) {
 
   return {
     mimeType: `image/${mime}`,
-    bytes
+    bytes,
+    base64: match[2]
   };
 }
 
@@ -623,7 +625,7 @@ function publicDrawing(entry) {
   };
 }
 
-function drawingEntries(limit = 60) {
+function localDrawingEntries(limit = 60) {
   refreshDatabaseFromStorage();
   return appDb.drawings
     .filter((entry) => entry.status === "approved" || entry.status === "needs_review")
@@ -632,32 +634,99 @@ function drawingEntries(limit = 60) {
     .map(publicDrawing);
 }
 
-async function writeAirtableDrawing(drawing) {
-  if (!airtableConfigured()) return;
+function airtableDrawingFromRecord(record) {
+  const fields = record.fields || {};
+  const [attachment] = fields[AIRTABLE_DRAWINGS_IMAGE_FIELD] || [];
+
+  return {
+    airtableRecordId: record.id,
+    id: fields.Id || record.id,
+    artist: fields.Artist || "Anonymous artist",
+    title: fields.Title || "Untitled pigeon",
+    imageDataUrl: attachment?.thumbnails?.large?.url || attachment?.url || fields.ImageDataUrl || "",
+    status: fields.Status || "approved",
+    ai: {
+      configured: Boolean(fields.IsDrawing !== undefined || fields.IsPigeon !== undefined),
+      isDrawing: fields.IsDrawing ?? null,
+      isPigeon: fields.IsPigeon ?? null,
+      confidence: Number(fields.Confidence) || 0
+    },
+    aiFeedback: fields.AiFeedback || "Saved to the community pigeon drawing gallery.",
+    createdAt: fields.CreatedAt || record.createdTime || ""
+  };
+}
+
+async function drawingEntries(limit = 60) {
+  if (!airtableConfigured()) return localDrawingEntries(limit);
+
+  const records = await listAirtableRecords(AIRTABLE_DRAWINGS_TABLE);
+  return records
+    .map(airtableDrawingFromRecord)
+    .filter((entry) => entry.imageDataUrl && (entry.status === "approved" || entry.status === "needs_review"))
+    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
+    .slice(0, limit)
+    .map(publicDrawing);
+}
+
+async function uploadAirtableDrawingImage(recordId, drawing, image) {
+  const field = encodeURIComponent(AIRTABLE_DRAWINGS_IMAGE_FIELD);
+  const url = `https://content.airtable.com/v0/${AIRTABLE_BASE_ID}/${recordId}/${field}/uploadAttachment`;
+  const extension = image.mimeType === "image/jpeg" ? "jpg" : image.mimeType.split("/")[1];
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${AIRTABLE_API_KEY}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      contentType: image.mimeType,
+      file: image.base64,
+      filename: `${drawing.id}.${extension}`
+    })
+  });
+
+  if (!response.ok) {
+    const error = new Error(`Airtable attachment upload failed: ${response.status}`);
+    error.statusCode = 502;
+    throw error;
+  }
+
+  return response.json();
+}
+
+async function writeAirtableDrawing(drawing, image) {
+  const fields = {
+    Id: drawing.id,
+    Artist: drawing.artist,
+    Title: drawing.title,
+    Status: drawing.status,
+    Confidence: drawing.ai.confidence,
+    AiFeedback: drawing.aiFeedback,
+    CreatedAt: drawing.createdAt
+  };
+
+  if (typeof drawing.ai.isDrawing === "boolean") fields.IsDrawing = drawing.ai.isDrawing;
+  if (typeof drawing.ai.isPigeon === "boolean") fields.IsPigeon = drawing.ai.isPigeon;
+
+  const created = await airtableRequest(AIRTABLE_DRAWINGS_TABLE, {
+    method: "POST",
+    body: JSON.stringify({ records: [{ fields }], typecast: true })
+  });
+  const recordId = created.records?.[0]?.id;
+
+  if (!recordId) {
+    const error = new Error("Airtable did not return a drawing record ID.");
+    error.statusCode = 502;
+    throw error;
+  }
 
   try {
-    await airtableRequest(AIRTABLE_DRAWINGS_TABLE, {
-      method: "POST",
-      body: JSON.stringify({
-        records: [{
-          fields: {
-            Id: drawing.id,
-            Artist: drawing.artist,
-            Title: drawing.title,
-            ImageDataUrl: drawing.imageDataUrl,
-            Status: drawing.status,
-            IsDrawing: drawing.ai.isDrawing,
-            IsPigeon: drawing.ai.isPigeon,
-            Confidence: drawing.ai.confidence,
-            AiFeedback: drawing.aiFeedback,
-            CreatedAt: drawing.createdAt
-          }
-        }],
-        typecast: true
-      })
-    });
+    await uploadAirtableDrawingImage(recordId, drawing, image);
   } catch (error) {
-    console.warn("Could not write drawing to Airtable.", error);
+    await airtableRequest(AIRTABLE_DRAWINGS_TABLE, { method: "DELETE" }, {
+      "records[]": [recordId]
+    }).catch(() => {});
+    throw error;
   }
 }
 
@@ -689,8 +758,13 @@ async function addDrawingSubmission(body, request) {
     ip: requestIp(request)
   };
 
-  appDb.drawings.unshift(drawing);
-  appDb.drawings = appDb.drawings.slice(0, 120);
+  if (airtableConfigured()) {
+    await writeAirtableDrawing(drawing, image);
+  } else {
+    appDb.drawings.unshift(drawing);
+    appDb.drawings = appDb.drawings.slice(0, 120);
+  }
+
   logEvent("drawing_submitted", {
     id: drawing.id,
     status,
@@ -699,7 +773,6 @@ async function addDrawingSubmission(body, request) {
     isPigeon: ai.isPigeon
   }, request);
   saveDatabase();
-  writeAirtableDrawing(drawing);
 
   return drawing;
 }
@@ -1075,12 +1148,17 @@ function handleRequest(request, response) {
     if (request.method === "GET") {
       if (!requireRateLimit(request, response, "drawings", 80, 60_000)) return;
 
-      sendJson(response, 200, {
-        drawings: drawingEntries(60),
-        airtableConfigured: airtableConfigured()
-      }, {
-        "cache-control": "no-store"
-      });
+      drawingEntries(60)
+        .then((drawings) => sendJson(response, 200, {
+          drawings,
+          airtableConfigured: airtableConfigured()
+        }, {
+          "cache-control": "no-store"
+        }))
+        .catch((error) => sendJson(response, error.statusCode || 500, {
+          error: "Could not load the drawing gallery.",
+          message: error.message
+        }));
       return;
     }
 
@@ -1102,8 +1180,9 @@ function handleRequest(request, response) {
             "cache-control": "no-store"
           });
         })
-        .catch((error) => sendJson(response, 400, {
-          error: error.message
+        .catch((error) => sendJson(response, error.statusCode || 400, {
+          error: error.statusCode ? "Could not save the drawing permanently." : error.message,
+          ...(error.statusCode ? { message: error.message } : {})
         }));
       return;
     }
@@ -1275,3 +1354,4 @@ module.exports.buildDomesticBreeds = buildDomesticBreeds;
 module.exports.extractBreedEntries = extractBreedEntries;
 module.exports.fetchWikipediaPages = fetchWikipediaPages;
 module.exports.leaderboardFromScoreRecords = leaderboardFromScoreRecords;
+module.exports.airtableDrawingFromRecord = airtableDrawingFromRecord;

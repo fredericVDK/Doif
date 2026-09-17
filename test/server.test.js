@@ -10,7 +10,7 @@ process.env.AIRTABLE_API_KEY = "";
 process.env.AIRTABLE_BASE_ID = "";
 
 const handleRequest = require("../server");
-const { leaderboardFromScoreRecords } = require("../server");
+const { airtableDrawingFromRecord, leaderboardFromScoreRecords } = require("../server");
 
 function createTestServer() {
   const server = http.createServer(handleRequest);
@@ -43,6 +43,27 @@ test("Airtable score submissions are aggregated by nickname", () => {
     { nickname: "Sky", feeds: 17 },
     { nickname: "Wing", feeds: 12 }
   ]);
+});
+
+test("Airtable drawing records use the stored attachment image", () => {
+  const drawing = airtableDrawingFromRecord({
+    id: "recDrawing",
+    createdTime: "2026-01-01T12:00:00.000Z",
+    fields: {
+      Id: "drw_123",
+      Artist: "Pigeon Artist",
+      Title: "Blue pigeon",
+      Status: "approved",
+      Image: [{
+        url: "https://example.com/full.jpg",
+        thumbnails: { large: { url: "https://example.com/large.jpg" } }
+      }]
+    }
+  });
+
+  assert.equal(drawing.id, "drw_123");
+  assert.equal(drawing.imageDataUrl, "https://example.com/large.jpg");
+  assert.equal(drawing.createdAt, "2026-01-01T12:00:00.000Z");
 });
 
 test("session endpoint creates an anonymous session", async () => {
