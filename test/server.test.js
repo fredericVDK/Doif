@@ -144,6 +144,10 @@ test("api docs expose documented endpoints", async () => {
     assert.equal(response.status, 200);
     assert.equal(data.name, "Pigeon Crumbs API");
     assert.equal(paths.includes("/api/feed"), true);
+    assert.equal(paths.includes("/api/game/pigeon"), true);
+    assert.equal(paths.includes("/api/game/feed"), true);
+    assert.equal(paths.includes("/api/game/shop/buy"), true);
+    assert.equal(paths.includes("/api/game/pigeondex"), true);
     assert.equal(paths.includes("/api/drawings"), true);
     assert.equal(paths.includes("/api/admin/events"), true);
   } finally {

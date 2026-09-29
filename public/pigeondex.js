@@ -25,9 +25,18 @@ const rateResult = document.querySelector("#rateResult");
 const detailPanel = document.querySelector("#detailPanel");
 const battleCommentary = document.querySelector("#battleCommentary");
 
+// Signed-in visitors complete the daily PigeonDex quest. Public visitors can
+// keep browsing normally; an unauthenticated response is intentionally silent.
+fetch("/api/game/quests/pigeondex",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:"{}"}).catch(()=>{});
+
 let breeds = [];
 let catalogSources = {};
-let favorites = new Set(JSON.parse(localStorage.getItem(favoritesKey) || "[]"));
+let dexUserId = "";
+let personalDex = null;
+let visibleLimit = 36;
+function localItems(key) {try {return JSON.parse(localStorage.getItem(key) || "[]");} catch {return [];}}
+function scopedKey(key) {return dexUserId ? `${key}:${dexUserId}` : key;}
+let favorites = new Set(localItems(favoritesKey));
 let compareIds = [];
 let battleIds = [];
 let showFavoritesOnly = false;
@@ -152,6 +161,7 @@ function seededIndex(seed, max) {
 }
 
 function dailyBreed() {
+  if (personalDex) return breeds.find(breed=>breed.id===personalDex.dailyId);
   const pool = photoBreeds();
 
   if (!pool.length) return null;
@@ -160,11 +170,11 @@ function dailyBreed() {
 }
 
 function loadHistory(key) {
-  return JSON.parse(localStorage.getItem(key) || "[]");
+  return localItems(scopedKey(key));
 }
 
 function saveHistory(key, entries, limit = 8) {
-  localStorage.setItem(key, JSON.stringify(entries.slice(0, limit)));
+  try {localStorage.setItem(scopedKey(key), JSON.stringify(entries.slice(0, limit)));} catch {}
 }
 
 function updateDailyHistory(breed) {
@@ -181,6 +191,7 @@ function updateDailyHistory(breed) {
 }
 
 function rarityFor(breed) {
+  if (personalDex) return breed.gameRarity || "Not assigned";
   if (breed.kind === "species") return "Not assessed";
   const text = `${breed.name} ${breed.fact}`.toLowerCase();
 
@@ -324,16 +335,50 @@ function playBattleSound(kind = "tap") {
 
 async function loadBreeds() {
   try {
-    breeds = (await fetchCachedBreeds()).filter(hasSpecificImage);
+    const session=await window.PigeonDiscovery.request("/api/auth/session");
+    if(session.user && !session.needsProfile) {
+      dexUserId=session.user.id;
+      favorites=new Set(localItems(scopedKey(favoritesKey)));
+      applyPersonalDex(await window.PigeonDiscovery.request("/api/game/discoveries"));
+    } else {
+      breeds = (await fetchCachedBreeds()).filter(hasSpecificImage);
+      document.getElementById("discoveryProgress").innerHTML=session.needsProfile
+        ? '<a href="/complete-profile">Choose your username to start your personal PigeonDex →</a>'
+        : '<strong>A whole world of pigeons.</strong><p><a href="/sign-in">Sign in to collect discoveries</a>, or explore the public catalogue below.</p>';
+    }
     sortBreeds();
     populateFilters();
     render();
     renderDaily();
+    if(personalDex) window.PigeonDiscovery.showPending(personalDex.pending);
   } catch (error) {
     console.error(error);
     setStatus("Could not load the pigeon catalogue. Please refresh to try again.");
+    document.getElementById("discoveryProgress").innerHTML='<p>Your PigeonDex could not be loaded. Refresh to try again, or <a href="/sign-in">sign in</a>.</p>';
   }
 }
+
+function applyPersonalDex(data) {
+  personalDex=data; breeds=data.breeds; catalogSources=data.sources;
+  const c=data.counts, discovered=c.discoveredSpecies+c.discoveredBreeds, total=c.species+c.breeds;
+  document.getElementById("discoveryProgress").innerHTML=`<strong>${discovered} / ${total} pigeons discovered</strong>
+    <p>${c.discoveredSpecies} / ${c.species} wild species · ${c.discoveredBreeds} / ${c.breeds} domestic breeds</p>
+    <p>Your adopted pigeon counts too. Meet today's pigeon to add a discovery. A new pigeon arrives each day at 00:00 UTC.</p>
+    <progress value="${discovered}" max="${total || 1}" aria-label="Pigeons discovered"></progress>`;
+}
+
+dailyPigeon.addEventListener("click",async event=>{
+  const button=event.target.closest("[data-discover-daily]");
+  if(!button || button.disabled) return;
+  button.disabled=true;
+  const status=dailyPigeon.querySelector("[data-discovery-status]");
+  status.textContent="Meeting today's pigeon…";
+  try {
+    const data=await window.PigeonDiscovery.request("/api/game/discoveries/daily",{speciesId:personalDex.dailyId});
+    applyPersonalDex(data);sortBreeds();populateFilters();render();renderDaily();
+    window.PigeonDiscovery.showPending(data.pending);
+  } catch(error) {status.textContent=error.message;button.disabled=false;}
+});
 
 function visibleBreeds() {
   const query = searchInput.value.trim().toLowerCase();
@@ -355,13 +400,16 @@ function render() {
   const visible = visibleBreeds();
 
   const sortedVisible = [...visible].sort((a, b) => {
+    if(personalDex && a.discovered!==b.discovered) return Number(b.discovered)-Number(a.discovered);
     return a.name.localeCompare(b.name);
   });
-  breedGrid.innerHTML = sortedVisible.map(renderCard).join("");
+  const page=personalDex ? sortedVisible.slice(0,visibleLimit) : sortedVisible;
+  breedGrid.innerHTML = page.map(renderCard).join("");
+  document.getElementById("morePigeons").hidden=page.length>=sortedVisible.length;
   const speciesCount = breeds.filter(breed => breed.kind === "species").length;
   const unavailable = Object.values(catalogSources).some(source => ["stale", "unavailable"].includes(source.status));
   setStatus(
-    (visible.length ? `Showing ${visible.length} of ${breeds.length} pigeons: ${speciesCount} species and ${breeds.length - speciesCount} domestic breeds.` : "No pigeons match these filters.")
+    (visible.length ? `Showing ${page.length} of ${visible.length} matching pigeons: ${speciesCount} species and ${breeds.length - speciesCount} domestic breeds in the catalogue.` : "No pigeons match these filters.")
     + (unavailable ? " A source is temporarily unavailable; saved records are shown where possible." : "")
   );
   renderCompare();
@@ -379,6 +427,7 @@ function descriptionCredit(breed) {
 }
 
 function renderCard(breed) {
+  if(breed.discovered===false) return `<article class="undiscovered-card"><span class="discovery-question" aria-hidden="true">?</span><h2>Undiscovered pigeon</h2><p>${breed.kind==="species" ? "Wild species" : "Domestic breed"}</p><small>Keep exploring. Meet the daily pigeon to grow your collection.</small></article>`;
   const isFavorite = favorites.has(breed.id);
   const isCompared = compareIds.includes(breed.id);
 
@@ -483,7 +532,7 @@ function renderDetail() {
 
   const breed = breeds.find((item) => item.id === selectedDetailId);
 
-  if (!breed) {
+  if (!breed || breed.discovered===false) {
     detailPanel.innerHTML = "";
     detailPanel.hidden = true;
     return;
@@ -585,7 +634,12 @@ function renderCompare() {
 function renderDaily() {
   const breed = dailyBreed();
 
-  if (!breed) return;
+  if (!breed) {dailyPigeon.innerHTML='<p class="empty">Today’s pigeon is temporarily unavailable. Please try again later.</p>';return;}
+
+  if(breed.discovered===false) {
+    dailyPigeon.innerHTML='<div class="undiscovered-card"><span class="discovery-question" aria-hidden="true">?</span><h3>A new feathered friend</h3><p>Meet today’s pigeon and add it to your PigeonDex.</p><button type="button" data-discover-daily>Discover today’s pigeon</button><p data-discovery-status role="status"></p></div>';
+    renderDailyHistory();return;
+  }
 
   updateDailyHistory(breed);
   dailyPigeon.innerHTML = `
@@ -708,7 +762,7 @@ function toggleFavorite(id) {
     favorites.add(id);
   }
 
-  localStorage.setItem(favoritesKey, JSON.stringify([...favorites]));
+  try {localStorage.setItem(scopedKey(favoritesKey), JSON.stringify([...favorites]));} catch {}
   render();
 }
 
@@ -918,9 +972,11 @@ window.addEventListener("popstate", () => {
   renderDetail();
 });
 
-searchInput.addEventListener("input", render);
+function renderFiltered() {visibleLimit=36;render();}
+document.getElementById("morePigeons").addEventListener("click",()=>{visibleLimit+=36;render();});
+searchInput.addEventListener("input", renderFiltered);
 [kindFilter, originFilter].forEach((filter) => {
-  filter.addEventListener("change", render);
+  filter.addEventListener("change", renderFiltered);
 });
 
 favoritesButton.addEventListener("click", () => {

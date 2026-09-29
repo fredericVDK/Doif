@@ -6,22 +6,26 @@
     <meta name="description" content="Backend API documentation for Pigeon Crumbs.">
     <title>Pigeon Crumbs API Docs</title>
     <link rel="stylesheet" href="api-docs.css">
-    <script>
-      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-    </script>
+    <link rel="stylesheet" href="site-navigation.css">
+    <script src="/analytics.js" defer></script>
     <script defer src="/_vercel/insights/script.js"></script>
   </head>
   <body>
     <header class="docs-header">
-      <nav>
-        <a href="index.html">Feed pigeons</a>
-        <a href="pigeondex.html">PigeonDex</a>
-        <a href="drawings.html">Drawings</a>
-        <a href="admin.html">Admin</a>
+      <nav class="global-nav" aria-label="Site navigation">
+        <a href="/">Home</a>
+        <a href="/my-pigeon">My Pigeon</a>
+        <a href="/pigeondex.html">PigeonDex</a>
+        <a href="/shop">Shop</a>
+        <a href="/inventory">Inventory</a>
+        <a href="/pigder.html">Pigder</a>
+        <a href="/drawings.html">Drawings</a>
+        <a href="/api-docs.html" aria-current="page">API</a>
+        <a href="/admin.html">Admin</a>
       </nav>
       <p class="eyebrow">Backend portfolio surface</p>
       <h1>API Docs</h1>
-      <p>The site exposes a small Node.js API for sessions, leaderboard rounds, PigeonDex caching, drawing submissions, admin moderation, and event logging.</p>
+      <p>The site exposes a Node.js API for verified accounts, the server-authoritative Tamagotchi game, leaderboard rounds, PigeonDex caching, drawing submissions, admin moderation, and event logging.</p>
     </header>
 
     <main class="docs-shell">
@@ -36,6 +40,7 @@
           <li>Anonymous session cookie for score submissions.</li>
           <li>Rate limiting on public write and read-heavy API routes.</li>
           <li>Protected admin routes using the <code>x-admin-token</code> header.</li>
+          <li>Authenticated Tamagotchi actions with server-owned stats, XP, coins, rewards, cooldowns, and idempotent request IDs.</li>
           <li>BirdNET species catalogue, supplemented by Wikipedia/Wikidata domestic breeds.</li>
           <li>Independent catalogue source caches with optional Airtable storage for drawings and scores.</li>
           <li>Community pigeon drawings stored through the backend.</li>
@@ -43,21 +48,6 @@
       </section>
     </main>
 
-    <script>
-      fetch("/api/docs")
-        .then((response) => response.json())
-        .then((docs) => {
-          document.querySelector("#docsList").innerHTML = docs.endpoints.map((endpoint) => `
-            <article class="endpoint-card">
-              <strong>${endpoint.method} ${endpoint.path}</strong>
-              <p>${endpoint.description}</p>
-              ${endpoint.body ? `<code>${JSON.stringify(endpoint.body)}</code>` : ""}
-            </article>
-          `).join("");
-        })
-        .catch(() => {
-          document.querySelector("#docsList").textContent = "Could not load API docs.";
-        });
-    </script>
+    <script src="/api-docs.js" defer></script>
   </body>
 </html>

@@ -2,8 +2,12 @@ const http = require("http");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const net = require("net");
+const {randomUUID,timingSafeEqual}=require("crypto");
 const { fetchBirdnetSpecies } = require("./lib/birdnet");
 const { createCatalog } = require("./lib/catalog");
+const { createAuthHandler } = require("./lib/auth/routes");
+const { GAME_API_DOCS } = require("./lib/game/api");
 
 function loadLocalEnvironment() {
   const envPath = path.join(__dirname, ".env");
@@ -19,6 +23,7 @@ function loadLocalEnvironment() {
 }
 
 loadLocalEnvironment();
+const handleAuth = createAuthHandler({getCatalog: () => getCatalog()});
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -33,7 +38,8 @@ const BREED_CACHE_TTL = 1000 * 60 * 60 * 6;
 const MISSING_SOURCE = "Not listed in source";
 const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, "data", "app-db.json");
 const FALLBACK_DATA_FILE = path.join(os.tmpdir(), "pigeon-crumbs-app-db.json");
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "dev-admin";
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || (process.env.NODE_ENV === "production" ? "" : "dev-admin");
+const TRUST_PROXY = process.env.TRUST_PROXY === "1";
 const SESSION_COOKIE = "pigeon_session";
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY || "";
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID || "";
@@ -44,6 +50,29 @@ let activeDataFile = DATA_FILE;
 let appDb = loadDatabase();
 const rateLimitBuckets = new Map();
 const allowedRootFiles = new Set([
+  "auth.css",
+  "site-navigation.css",
+  "auth.js",
+  "analytics.js",
+  "adoption.css",
+  "pigeon-dashboard.css",
+  "pigeon-feed.js",
+  "pigeon-care.js",
+  "pigeon-ui.js",
+  "pigeon-daily-reward.js",
+  "pigeon-daily-quests.js",
+  "pigeon-achievements.js",
+  "crumb-game.css",
+  "crumb-game.js",
+  "pigeon-discovery.js",
+  "pigeon-discovery.css",
+  "inventory.css",
+  "shop.css",
+  "shop.js",
+  "pigeon-play.js",
+  "pigeon-clean.js",
+  "pigeon-sleep.js",
+  "adoption.js",
   "catalog-ui.js",
   "catalog-ui.css",
   "index.html",
@@ -54,6 +83,7 @@ const allowedRootFiles = new Set([
   "admin.js",
   "api-docs.html",
   "api-docs.css",
+  "api-docs.js",
   "pigeondex.html",
   "pigeondex.css",
   "pigeondex.js",
@@ -70,6 +100,7 @@ const mimeTypes = {
   ".css": "text/css; charset=utf-8",
   ".js": "application/javascript; charset=utf-8",
   ".png": "image/png",
+  ".svg": "image/svg+xml; charset=utf-8",
   ".ico": "image/x-icon"
 };
 
@@ -158,11 +189,11 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function requestIp(request) {
-  return (request.headers["x-forwarded-for"] || request.socket.remoteAddress || "unknown")
-    .toString()
-    .split(",")[0]
-    .trim();
+function requestIp(request,trustProxy=TRUST_PROXY) {
+  const remote=String(request.socket?.remoteAddress||"unknown").slice(0,64);
+  if(!trustProxy) return remote;
+  const forwarded=String(request.headers?.["x-forwarded-for"]||"").split(",")[0].trim();
+  return forwarded.length<=64&&net.isIP(forwarded)?forwarded:remote;
 }
 
 function parseCookies(request) {
@@ -179,7 +210,7 @@ function parseCookies(request) {
 }
 
 function makeId(prefix) {
-  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+  return `${prefix}_${randomUUID()}`;
 }
 
 function findOrCreateSession(request, response) {
@@ -203,7 +234,8 @@ function findOrCreateSession(request, response) {
   }
 
   if (response) {
-    response.setHeader("set-cookie", `${SESSION_COOKIE}=${encodeURIComponent(session.id)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000`);
+    const secure=/^https:\/\//i.test(process.env.APP_ORIGIN||"")||request.headers["x-forwarded-proto"]==="https";
+    response.setHeader("set-cookie", `${SESSION_COOKIE}=${encodeURIComponent(session.id)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=31536000${secure?"; Secure":""}`);
   }
 
   return session;
@@ -509,6 +541,24 @@ function sendJson(response, statusCode, data, headers = {}) {
     ...headers
   });
   response.end(JSON.stringify(data));
+}
+
+function sendServiceError(response,error,publicMessage,fallbackStatus=500) {
+  console.error("Backend request failed",{
+    status:error?.statusCode||fallbackStatus,
+    code:typeof error?.code==="string"?error.code:"UPSTREAM_FAILURE",
+    type:error?.name||"Error"
+  });
+  sendJson(response,error?.statusCode||fallbackStatus,{error:publicMessage});
+}
+
+function publicSecurityHeaders(response) {
+  response.setHeader("x-content-type-options","nosniff");
+  response.setHeader("referrer-policy","strict-origin-when-cross-origin");
+  response.setHeader("x-frame-options","DENY");
+  response.setHeader("cross-origin-opener-policy","same-origin");
+  response.setHeader("permissions-policy","camera=(), microphone=(), geolocation=()");
+  response.setHeader("content-security-policy","default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https://vitals.vercel-insights.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
 }
 
 function airtableConfigured() {
@@ -923,6 +973,9 @@ async function resetLeaderboard() {
 
 function readJsonBody(request, maxBytes = 4096) {
   return new Promise((resolve, reject) => {
+    if((request.headers["content-type"]||"").split(";")[0].trim().toLowerCase()!=="application/json") {
+      const error=new Error("Please submit JSON.");error.statusCode=415;reject(error);return;
+    }
     let body = "";
 
     request.on("data", (chunk) => {
@@ -960,9 +1013,16 @@ function apiDocs() {
       "Protected admin moderation"
     ],
     auth: {
-      admin: "Admin endpoints require the x-admin-token header. Set ADMIN_TOKEN in production."
+      admin: "Admin endpoints require the x-admin-token header. Set ADMIN_TOKEN in production.",
+      accounts: "Optional Supabase Auth accounts use HttpOnly cookies. Account POST routes require JSON and an Origin matching APP_ORIGIN."
     },
     endpoints: [
+      { method: "GET", path: "/api/auth/session", description: "Return the verified account profile or an anonymous/unconfigured state. Never returns authentication tokens." },
+      { method: "POST", path: "/api/auth/sign-up", description: "Register an account. Email confirmation may be required.", body: { username: "string", email: "string", password: "string (12-128 characters)" } },
+      { method: "POST", path: "/api/auth/sign-in", description: "Sign in and establish the account session.", body: { email: "string", password: "string" } },
+      { method: "POST", path: "/api/auth/sign-out", description: "Revoke this browser's refresh session and clear account cookies." },
+      { method: "POST", path: "/api/auth/profile", description: "Signed-in users: complete a missing game profile. Identity and starting coins are determined by the server.", body: { username: "string" } },
+      ...GAME_API_DOCS,
       { method: "GET", path: "/api/session", description: "Create or return the current anonymous session." },
       { method: "GET", path: "/api/leaderboard", description: "Return the top pigeon feeders." },
       { method: "POST", path: "/api/feed", description: "Submit a completed feeding round.", body: { nickname: "string", amount: "number" } },
@@ -979,8 +1039,14 @@ function apiDocs() {
   };
 }
 
+function safeTokenEqual(left,right) {
+  if(typeof left!=="string"||typeof right!=="string"||!left||!right) return false;
+  const a=Buffer.from(left),b=Buffer.from(right);
+  return a.length===b.length&&timingSafeEqual(a,b);
+}
+
 function isAdminRequest(request) {
-  return request.headers["x-admin-token"] === ADMIN_TOKEN;
+  return safeTokenEqual(request.headers["x-admin-token"],ADMIN_TOKEN);
 }
 
 function requireAdmin(request, response) {
@@ -1042,7 +1108,9 @@ function getStaticFilePath(pathname) {
 }
 
 function handleRequest(request, response) {
-  const url = new URL(request.url, `http://${request.headers.host}`);
+  publicSecurityHeaders(response);
+  if (handleAuth(request, response)) return;
+  const url = new URL(request.url, "http://local.invalid");
 
   if (url.pathname === "/api/docs") {
     if (request.method !== "GET") {
@@ -1086,10 +1154,7 @@ function handleRequest(request, response) {
       .then((leaderboard) => sendJson(response, 200, { leaderboard }, {
         "cache-control": "no-store"
       }))
-      .catch((error) => sendJson(response, error.statusCode || 500, {
-        error: "Could not load the leaderboard.",
-        message: error.message
-      }));
+      .catch((error) => sendServiceError(response,error,"Could not load the leaderboard."));
     return;
   }
 
@@ -1118,10 +1183,9 @@ function handleRequest(request, response) {
           "cache-control": "no-store"
         });
       })
-      .catch((error) => sendJson(response, error.statusCode || 400, {
-        error: error.statusCode ? "Could not save the score." : error.message,
-        ...(error.statusCode ? { message: error.message } : {})
-      }));
+      .catch((error) => error.statusCode&&error.statusCode!==415
+        ?sendServiceError(response,error,"Could not save the score.")
+        :sendJson(response,error.statusCode||400,{error:error.message}));
     return;
   }
 
@@ -1155,10 +1219,7 @@ function handleRequest(request, response) {
         }, {
           "cache-control": "no-store"
         }))
-        .catch((error) => sendJson(response, error.statusCode || 500, {
-          error: "Could not load the drawing gallery.",
-          message: error.message
-        }));
+        .catch((error) => sendServiceError(response,error,"Could not load the drawing gallery."));
       return;
     }
 
@@ -1180,10 +1241,9 @@ function handleRequest(request, response) {
             "cache-control": "no-store"
           });
         })
-        .catch((error) => sendJson(response, error.statusCode || 400, {
-          error: error.statusCode ? "Could not save the drawing permanently." : error.message,
-          ...(error.statusCode ? { message: error.message } : {})
-        }));
+        .catch((error) => error.statusCode&&error.statusCode!==415
+          ?sendServiceError(response,error,"Could not save the drawing permanently.")
+          :sendJson(response,error.statusCode||400,{error:error.message}));
       return;
     }
 
@@ -1205,10 +1265,7 @@ function handleRequest(request, response) {
       }, {
         "cache-control": catalogCacheControl(catalog)
       }))
-      .catch((error) => sendJson(response, 502, {
-        error: "Could not load pigeon breed cache.",
-        message: error.message
-      }));
+      .catch((error) => sendServiceError(response,error,"Could not load pigeon breed cache.",502));
     return;
   }
 
@@ -1234,10 +1291,7 @@ function handleRequest(request, response) {
           "cache-control": catalogCacheControl(catalog)
         });
       })
-      .catch((error) => sendJson(response, 502, {
-        error: "Could not load pigeon breed cache.",
-        message: error.message
-      }));
+      .catch((error) => sendServiceError(response,error,"Could not load pigeon breed cache.",502));
     return;
   }
 
@@ -1256,10 +1310,7 @@ function handleRequest(request, response) {
       }, {
         "cache-control": "no-store"
       }))
-      .catch((error) => sendJson(response, error.statusCode || 500, {
-        error: "Could not load the leaderboard.",
-        message: error.message
-      }));
+      .catch((error) => sendServiceError(response,error,"Could not load the leaderboard."));
     return;
   }
 
@@ -1281,10 +1332,7 @@ function handleRequest(request, response) {
           "cache-control": "no-store"
         });
       })
-      .catch((error) => sendJson(response, error.statusCode || 500, {
-        error: "Could not delete the leaderboard entry.",
-        message: error.message
-      }));
+      .catch((error) => sendServiceError(response,error,"Could not delete the leaderboard entry."));
     return;
   }
 
@@ -1304,10 +1352,7 @@ function handleRequest(request, response) {
           "cache-control": "no-store"
         });
       })
-      .catch((error) => sendJson(response, error.statusCode || 500, {
-        error: "Could not reset the leaderboard.",
-        message: error.message
-      }));
+      .catch((error) => sendServiceError(response,error,"Could not reset the leaderboard."));
     return;
   }
 
@@ -1355,3 +1400,6 @@ module.exports.extractBreedEntries = extractBreedEntries;
 module.exports.fetchWikipediaPages = fetchWikipediaPages;
 module.exports.leaderboardFromScoreRecords = leaderboardFromScoreRecords;
 module.exports.airtableDrawingFromRecord = airtableDrawingFromRecord;
+module.exports.requestIp = requestIp;
+module.exports.safeTokenEqual = safeTokenEqual;
+module.exports.publicSecurityHeaders = publicSecurityHeaders;

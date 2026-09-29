@@ -8,9 +8,42 @@
     "start": "node server.js",
     "dev": "node server.js",
     "test": "node --test",
-    "refresh:catalog": "node scripts/refresh-catalog.js"
+    "test:game": "node --test test/game-model.test.js test/adoption.test.js test/time-engine.test.js test/feed.test.js test/play.test.js test/clean.test.js test/sleep.test.js test/xp.test.js test/growth.test.js test/care-view.test.js test/coins.test.js test/discoveries.test.js test/daily-reward.test.js test/inventory.test.js test/shop.test.js test/navigation.test.js test/daily-quests.test.js test/achievements.test.js test/crumb-game.test.js test/ui-ux.test.js test/game-architecture.test.js test/game-api.test.js test/error-handling.test.js test/mvp-flow.test.js",
+    "test:api": "node --test test/game-api.test.js test/server.test.js",
+    "test:architecture": "node --test test/game-architecture.test.js test/error-handling.test.js test/security.test.js",
+    "test:security": "node --test test/security.test.js",
+    "test:mvp": "node --test test/mvp-flow.test.js",
+    "test:errors": "node --test test/error-handling.test.js",
+    "test:minigame": "node --test test/crumb-game.test.js",
+    "test:achievements": "node --test test/achievements.test.js",
+    "test:quests": "node --test test/daily-quests.test.js",
+    "test:navigation": "node --test test/navigation.test.js",
+    "test:shop": "node --test test/shop.test.js",
+    "test:inventory": "node --test test/inventory.test.js",
+    "test:daily": "node --test test/daily-reward.test.js",
+    "test:growth": "node --test test/growth.test.js test/care-view.test.js",
+    "test:xp": "node --test test/xp.test.js test/growth.test.js test/care-view.test.js",
+    "test:sleep": "node --test test/sleep.test.js",
+    "test:clean": "node --test test/clean.test.js",
+    "test:play": "node --test test/play.test.js",
+    "test:feed": "node --test test/feed.test.js",
+    "test:engine": "node --test test/time-engine.test.js",
+    "test:auth": "node --test test/auth.test.js",
+    "test:adoption": "node --test test/adoption.test.js",
+    "seed:game": "node scripts/seed-game.js",
+    "seed:adoption": "node scripts/seed-adoption.js",
+    "refresh:catalog": "node scripts/refresh-catalog.js",
+    "test:coins": "node --test test/coins.test.js test/care-view.test.js",
+    "test:discoveries": "node --test test/discoveries.test.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8"
+  },
+  "dependencies": {
+    "@supabase/ssr": "0.12.7",
+    "@supabase/supabase-js": "2.116.0"
   }
 }

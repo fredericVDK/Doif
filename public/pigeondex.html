@@ -7,18 +7,22 @@
     <title>PigeonDex</title>
     <link rel="stylesheet" href="pigeondex.css">
     <link rel="stylesheet" href="catalog-ui.css">
-    <script>
-      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-    </script>
+    <link rel="stylesheet" href="pigeon-discovery.css">
+    <link rel="stylesheet" href="site-navigation.css">
+    <script src="/analytics.js" defer></script>
     <script defer src="/_vercel/insights/script.js"></script>
   </head>
   <body>
     <header class="dex-header">
-      <nav class="dex-nav" aria-label="Site navigation">
-        <a href="pigeondex.html" aria-current="page">PigeonDex</a>
-        <a href="pigder.html">Pigder</a>
-        <a href="drawings.html">Drawings</a>
-        <a href="index.html">Feed pigeons</a>
+      <nav class="dex-nav global-nav" aria-label="Site navigation">
+        <a href="/">Home</a>
+        <a href="/my-pigeon">My Pigeon</a>
+        <a href="/pigeondex.html" aria-current="page">PigeonDex</a>
+        <a href="/shop">Shop</a>
+        <a href="/inventory">Inventory</a>
+        <a href="/pigder.html">Pigder</a>
+        <a href="/drawings.html">Drawings</a>
+        <a href="/api-docs.html">API</a>
       </nav>
       <div class="header-copy">
         <p class="eyebrow">Live API bird book</p>
@@ -46,6 +50,7 @@
       </aside>
 
       <section class="main-column">
+        <section class="discovery-progress" id="discoveryProgress" aria-label="Your discoveries" role="status">Loading your PigeonDex…</section>
         <section class="controls" aria-label="PigeonDex controls">
           <label class="search-box">
             <span>Search pigeons</span>
@@ -94,6 +99,7 @@
 
         <section class="status" id="status" role="status">Loading the pigeon catalogue...</section>
         <section class="breed-grid" id="breedGrid" aria-label="Pigeon results"></section>
+        <button id="morePigeons" type="button" hidden>Show more pigeons</button>
       </section>
 
       <aside class="battle-panel side-panel" aria-label="Pigeon Battle Arena">
@@ -116,6 +122,7 @@
     </main>
 
     <script src="catalog-ui.js"></script>
+    <script src="pigeon-discovery.js"></script>
     <script src="pigeondex.js"></script>
   </body>
 </html>
