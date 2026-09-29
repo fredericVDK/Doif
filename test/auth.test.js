@@ -214,4 +214,7 @@ test("unsafe configured origins and Supabase URLs are rejected", () => {
   }
   assert.equal(readAuthConfig({}), null);
   assert.equal(readAuthConfig(env).secure, true);
+  const vercel = readAuthConfig({ ...env, APP_ORIGIN: "", VERCEL_PROJECT_PRODUCTION_URL: "doif-eta.vercel.app" });
+  assert.equal(vercel.origin, "https://doif-eta.vercel.app");
+  assert.equal(vercel.secure, true);
 });

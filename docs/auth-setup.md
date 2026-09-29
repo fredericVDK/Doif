@@ -27,6 +27,8 @@ Phase 3 adds adoption; see [the adoption upgrade instructions](adoption-setup.md
    ```
 
    `APP_ORIGIN` must be the exact origin you open in the browser, including port.
+   On Vercel it may be omitted: the server then uses Vercel's trusted
+   `VERCEL_PROJECT_PRODUCTION_URL` automatically.
    `localhost` and `127.0.0.1` are different origins. If `PORT` is set, use that port.
    Production origins must use HTTPS; URLs with credentials, paths, queries or
    fragments are rejected. No keys are embedded in browser JavaScript or HTML.
