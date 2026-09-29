@@ -17,6 +17,11 @@ cooldown van 30 seconden en een duif heeft minstens 10 actuele Energy nodig.
 3. Plak de volledige inhoud van `migrations/019_pigeon_battles.sql`.
 4. Klik **Run** en herlaad daarna de website.
 
+Heb je de eerste versie van migratie 019 al uitgevoerd en krijg je de melding
+`last_battled_at already exists`? Voer 019 dan niet opnieuw uit. Gebruik alleen
+`migrations/020_automatic_battles.sql`; die vervangt de functie zonder tabellen,
+kolommen, eerdere battles of voortgang opnieuw aan te maken.
+
 Migratie 019 bewaart bestaande accounts en voortgang. Ze voegt alleen het
 laatste gevechtstijdstip en idempotente battle receipts toe.
 

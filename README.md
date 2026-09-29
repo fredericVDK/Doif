@@ -230,6 +230,8 @@ MVP and regression suite. New phase 29 adds server-authoritative
 [Pigeon Battles](docs/pigeon-battles.md) directly on My Pigeon: an opponent is
 selected automatically, difficulty rises with level, losses award no XP and a
 win awards `15 + (level × 3)` XP. Apply `migrations/019_pigeon_battles.sql` after 018.
+Projects that already ran the first opponent-selection version of migration 019
+must run `migrations/020_automatic_battles.sql` instead of rerunning 019.
 
 See [the model, migration instructions and phase boundaries](docs/tamagotchi-model.md).
 Run `npm run test:game` to execute the schema tests locally with PGlite; no hosted
