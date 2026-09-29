@@ -1,12 +1,12 @@
 # Pigeon Battle — nieuwe fase 29
 
-Op de beveiligde route `/battle` neemt de persoonlijke duif het op tegen één
-van de andere starterrassen. Een gevecht kost 10 Energy. Een overwinning geeft
-18 XP; een verlies geeft 8 XP. De normale centrale XP- en groeilogica verwerkt
-level-ups onmiddellijk.
+Op `/my-pigeon` start **Battle** meteen een gevecht tegen een automatisch gekozen
+starterras. Een gevecht kost 10 Energy. Verlies geeft geen XP. Bij winst is de
+beloning `15 + (level × 3)` XP, zodat een moeilijker gevecht op een hoger level
+ook duidelijk meer oplevert. De centrale XP- en groeilogica verwerkt level-ups.
 
-De browser kiest alleen de tegenstander en maakt een unieke request-ID. De
-database berekent beide powerscores en de uitslag. Dezelfde request-ID kan maar
+De browser maakt alleen een unieke request-ID. De database kiest de tegenstander,
+berekent de stijgende moeilijkheid en bepaalt de uitslag. Dezelfde request-ID kan maar
 één keer Energy gebruiken en XP geven. Tussen gevechten geldt een server-side
 cooldown van 30 seconden en een duif heeft minstens 10 actuele Energy nodig.
 

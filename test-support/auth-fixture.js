@@ -165,10 +165,10 @@ function fakeSupabase({ gameDb } = {}) {
     }
     if(url.pathname==='/rest/v1/rpc/battle_game_pigeon') {
       assert.equal(request.headers.get('apikey'),'test-server-secret');
-      assert.deepEqual(Object.keys(body).sort(),['p_opponent_species_id','p_request_id','p_user_id']);
+      assert.deepEqual(Object.keys(body).sort(),['p_request_id','p_user_id']);
       assert.ok(gameDb,'Battle tests use actual SQL');
       if(state.gameDown)return response({code:'PGRST205'},503);
-      try{return response((await gameDb.query('SELECT public.battle_game_pigeon($1,$2,$3) AS result',[body.p_user_id,body.p_request_id,body.p_opponent_species_id])).rows[0].result);}
+      try{return response((await gameDb.query('SELECT public.battle_game_pigeon($1,$2) AS result',[body.p_user_id,body.p_request_id])).rows[0].result);}
       catch(error){return response({code:error.code,message:'Test battle failure'},400);}
     }
     if (["/rest/v1/game_species", "/rest/v1/game_pigeons", "/rest/v1/rpc/adopt_game_pigeon", "/rest/v1/rpc/refresh_game_pigeon", "/rest/v1/rpc/feed_game_pigeon", "/rest/v1/rpc/play_game_pigeon", "/rest/v1/rpc/clean_game_pigeon", "/rest/v1/rpc/sleep_game_pigeon"].includes(url.pathname)) {

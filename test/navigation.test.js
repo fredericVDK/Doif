@@ -7,7 +7,7 @@ const {renderAuthPage}=require('../lib/auth/pages');
 const {renderInventoryPage,renderShopPage}=require('../lib/game/pages');
 const read=file=>fs.readFileSync(path.join(__dirname,'..',file),'utf8');
 const core=[
-  ['home','/','Home'],['my-pigeon','/my-pigeon','My Pigeon'],['battle','/battle','Battle'],['pigeondex','/pigeondex.html','PigeonDex'],
+  ['home','/','Home'],['my-pigeon','/my-pigeon','My Pigeon'],['pigeondex','/pigeondex.html','PigeonDex'],
   ['shop','/shop','Shop'],['inventory','/inventory','Inventory'],['pigder','/pigder.html','Pigder'],
   ['drawings','/drawings.html','Drawings'],['api','/api-docs.html','API']
 ];
@@ -17,7 +17,7 @@ function anchors(html) {return [...html.matchAll(/<a href="([^"]+)"([^>]*)>([^<]
 test('central navigation defines the requested destinations in one stable order',()=>{
   assert.deepEqual(LINKS,core);
   assert.deepEqual(TAMAGOTCHI_LINKS.map(([,href,label])=>[href,label]),[
-    ['/my-pigeon','My Pigeon'],['/battle','Battle'],['/shop','Shop'],['/inventory','Inventory']
+    ['/my-pigeon','My Pigeon'],['/shop','Shop'],['/inventory','Inventory']
   ]);
   const basic=anchors(renderNavigation('home'));
   assert.deepEqual(basic.map(({href,label})=>[href,label]),[
@@ -79,11 +79,11 @@ test('public navigation upgrades after a verified account session',()=>{
   assert.match(script,/fetch\('\/api\/auth\/session'/);
   assert.match(script,/credentials: 'same-origin'/);
   assert.match(script,/Boolean\(session\?\.user\)/);
-  for(const label of ['My Pigeon','Battle','Shop','Inventory','Sign out','Login']) assert.match(script,new RegExp(label));
+  for(const label of ['My Pigeon','Shop','Inventory','Sign out','Login']) assert.match(script,new RegExp(label));
 });
 
 test('all navigation targets resolve to existing public files or owned application routes',()=>{
-  const routeTargets=new Set(['/','/my-pigeon','/battle','/shop','/inventory']);
+  const routeTargets=new Set(['/','/my-pigeon','/shop','/inventory']);
   for(const [,href] of core) {
     if(routeTargets.has(href)) continue;
     assert.equal(fs.existsSync(path.join(__dirname,'..','public',href.slice(1))),true,href);

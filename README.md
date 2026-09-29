@@ -227,8 +227,9 @@ available and do not consume inventory. See the [feeding guide](docs/feed.md).
 Phase 27 provides the requested starter and item seed data; the main catalogue
 supplies additional real pigeon species. Phase 28 is covered by the end-to-end
 MVP and regression suite. New phase 29 adds server-authoritative
-[Pigeon Battles](docs/pigeon-battles.md): battles cost 10 Energy and award 18 XP
-for a win or 8 XP for a loss. Apply `migrations/019_pigeon_battles.sql` after 018.
+[Pigeon Battles](docs/pigeon-battles.md) directly on My Pigeon: an opponent is
+selected automatically, difficulty rises with level, losses award no XP and a
+win awards `15 + (level × 3)` XP. Apply `migrations/019_pigeon_battles.sql` after 018.
 
 See [the model, migration instructions and phase boundaries](docs/tamagotchi-model.md).
 Run `npm run test:game` to execute the schema tests locally with PGlite; no hosted
