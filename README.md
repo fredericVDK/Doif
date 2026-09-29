@@ -242,6 +242,10 @@ returns 50 coins. Purchases, UTC limits, random catalogue selection, discovery
 writes and refunds are server-owned and idempotent. Apply
 `migrations/023_pigeon_packs.sql` once after migration 022; see
 [the Pigeon Packs guide](docs/pigeon-packs.md).
+Phase 31 adds the [Pigeon Clinic](docs/pigeon-clinic.md) to My Pigeon. A
+server-authoritative visit costs 100 coins and restores the pigeon to 100 Health;
+full Health is never charged and retries count once. Apply
+`migrations/024_pigeon_clinic.sql` once after migration 023.
 The player-facing catalogue is photo-only: 269 wild species and 137 domestic
 breeds currently qualify. Records that would use the generic replacement image
 are excluded from PigeonDex, daily discovery and catalogue API results.

@@ -20,6 +20,7 @@ publieke `/api/docs`-pagina, zodat documentatie en uitvoering niet uiteenlopen.
 | POST | `/api/game/shop/buy` | Item kopen tegen databaseprijs |
 | GET | `/api/game/packs` | Prijzen en beschikbaarheid van duivenpacks |
 | POST | `/api/game/packs/buy` | Dagelijks of wekelijks duivenpack openen |
+| POST | `/api/game/clinic` | Health volledig herstellen tegen de vaste clinicprijs |
 | GET | `/api/game/pigeondex` | Persoonlijke ontdekkingen en voortgang |
 | POST | `/api/game/daily-reward` | Dagelijkse beloning claimen |
 
