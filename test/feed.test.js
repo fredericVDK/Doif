@@ -12,7 +12,7 @@ before(async () => {
     CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS;
     CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT NULL::uuid $$;
     GRANT USAGE ON SCHEMA public, auth TO anon, authenticated, service_role;`);
-  for (const file of ["migrations/001_tamagotchi.sql","seeds/tamagotchi-starters.sql","migrations/002_adoption.sql","migrations/003_time_engine.sql","migrations/004_feed.sql", "migrations/005_play.sql", "migrations/006_clean.sql", "migrations/007_sleep.sql", "migrations/008_xp_levels.sql", "migrations/009_growth_stages.sql", "migrations/010_coins.sql", "migrations/011_discoveries.sql"]) {
+  for (const file of ["migrations/001_tamagotchi.sql","seeds/tamagotchi-starters.sql","migrations/002_adoption.sql","migrations/003_time_engine.sql","migrations/004_feed.sql", "migrations/005_play.sql", "migrations/006_clean.sql", "migrations/007_sleep.sql", "migrations/008_xp_levels.sql", "migrations/009_growth_stages.sql", "migrations/010_coins.sql", "migrations/011_discoveries.sql", "migrations/012_daily_reward.sql", "migrations/013_inventory.sql", "migrations/014_shop.sql", "migrations/015_daily_quests.sql", "migrations/016_achievements.sql", "migrations/017_catch_the_crumbs.sql", "migrations/018_inventory_feeding.sql"]) {
     await db.exec(fs.readFileSync(path.join(__dirname,"..",file),"utf8"));
   }
 });
@@ -56,6 +56,37 @@ test("crumbs cap both needs at 100 and remain usable on a newly adopted full pig
   assert.equal(result.pigeon.xp,5);
   assert.ok(Number(result.effects.hunger)<0.01);
   assert.ok(Number(result.effects.happiness)<0.01);
+});
+
+test("owned food applies its catalogue effects and consumes exactly one item",async t => {
+  const f = await setup(t);
+  await db.query("INSERT INTO public.game_user_items(user_id,item_id,quantity) VALUES($1,'corn',2)",[f.user.id]);
+  await db.exec("UPDATE public.game_pigeons SET hunger=20,happiness=20,energy=20,cleanliness=20,last_updated=now(),last_fed_at=NULL");
+  const result=await (await post(f,{food:'corn',requestId:randomUUID()})).json();
+  assert.ok(Math.abs(Number(result.pigeon.hunger)-42)<0.01);
+  assert.ok(Math.abs(Number(result.pigeon.happiness)-23)<0.01);
+  assert.equal(result.food,'corn');
+  assert.equal(result.item.quantity,1);
+  assert.deepEqual(result.effects,{hunger:22,happiness:3,xp:5,coins:2});
+  assert.equal((await db.query("SELECT quantity FROM public.game_user_items WHERE user_id=$1 AND item_id='corn'",[f.user.id])).rows[0].quantity,1);
+});
+
+test("inventory food cannot be forged, consumed twice by a retry, or lost on cooldown",async t => {
+  const f = await setup(t);
+  const missing=await post(f,{food:'peas',requestId:randomUUID()});
+  assert.equal(missing.status,409);
+  assert.equal((await missing.json()).code,'FOOD_NOT_OWNED');
+  await db.query("INSERT INTO public.game_user_items(user_id,item_id,quantity) VALUES($1,'sunflower_seeds',2)",[f.user.id]);
+  const body={food:'sunflower_seeds',requestId:randomUUID()};
+  const first=await (await post(f,body)).json();
+  assert.equal(first.item.quantity,1);
+  assert.ok(Number(first.effects.energy)<0.01,"energy is capped on a full pigeon");
+  const replay=await (await post(f,body)).json();
+  assert.equal(replay.replayed,true);
+  assert.equal(replay.item.quantity,1);
+  const blocked=await post(f,{food:'sunflower_seeds',requestId:randomUUID()});
+  assert.equal(blocked.status,429);
+  assert.equal((await db.query("SELECT quantity FROM public.game_user_items WHERE user_id=$1 AND item_id='sunflower_seeds'",[f.user.id])).rows[0].quantity,1);
 });
 
 test("simultaneous identical requests and old retries never award duplicate XP",async t => {

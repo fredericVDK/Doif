@@ -55,11 +55,12 @@ test('authentication and game pages use the same nav with contextual account act
   assert.deepEqual(anchors(nav(auth)).map(({label})=>label),[...PUBLIC_LINKS.map(([, ,label])=>label),'Login']);
   const logout=renderAuthPage('logout',{configured:true,user:{id:'u',email:'a@b.test'}});
   assert.equal(anchors(nav(logout)).at(-1).label,'Sign out');
-  const inventory={items:[],summary:{distinctOwned:0,totalQuantity:0}};
+  const inventory={items:[{id:'corn',name:'Corn',type:'food',description:'Golden kernels',price:25,quantity:1,image:'/assets/items/corn.svg',hunger_effect:22,happiness_effect:3,energy_effect:0,cleanliness_effect:0}],summary:{distinctOwned:1,totalQuantity:1}};
   const inventoryHtml=renderInventoryPage(inventory,{username:'Bird',coins:10,coins_version:0});
   const shopHtml=renderShopPage(inventory,{username:'Bird',coins:10,coins_version:0});
   assert.equal(anchors(nav(inventoryHtml)).find(link=>link.attrs.includes('aria-current')).label,'Inventory');
   assert.equal(anchors(nav(shopHtml)).find(link=>link.attrs.includes('aria-current')).label,'Shop');
+  assert.match(inventoryHtml,/href="\/my-pigeon\?food=corn">Give to pigeon/);
   for(const html of [auth,logout,inventoryHtml,shopHtml]) assert.match(html,/site-navigation\.css/);
 });
 

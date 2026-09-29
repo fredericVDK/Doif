@@ -42,7 +42,8 @@ Sinds fase 14 claimt het eerste dashboardbezoek van elke UTC-dag automatisch de
 groeifase worden meteen bijgewerkt voordat het beloningsvenster verschijnt.
 Sinds fase 15 staat **Inventory** in de accountnavigatie. De
 [inventarispagina](inventory.md) toont vier voedselitems en de eigen aantallen,
-na migratie 013. Het gebruiken van inventory-food volgt in een latere uitbreiding.
+na migratie 013. Sinds migratie 018 toont Feed ook de eigen Corn, Peas en
+Sunflower Seeds en wordt één gekozen item atomair verbruikt.
 Sinds fase 16 staat ook de [Shop](shop.md) in de accountnavigatie, na migratie
 014. Aankopen verminderen het coinsaldo en verhogen de inventaris atomair.
 Sinds fase 17 gebruiken dashboard, accountpagina’s en publieke pagina’s dezelfde

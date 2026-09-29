@@ -179,7 +179,7 @@ Crumbs, Corn, Peas and Sunflower Seeds. Apply `migrations/013_inventory.sql` onc
 after 012; see [the inventory guide](docs/inventory.md). Phase 16 adds the
 server-authoritative [Shop](docs/shop.md): apply `migrations/014_shop.sql` after
 013. Purchases atomically spend coins and add inventory with idempotent retries.
-Existing free Crumbs remain available while inventory-food use is still pending.
+Existing free Crumbs remain available alongside owned food.
 Phase 17 gives every public and account page the same responsive navigation for
 Home, My Pigeon, PigeonDex, Shop, Inventory, Pigder, Drawings and API. It needs no
 database migration; see [the navigation guide](docs/navigation.md).
@@ -219,6 +219,11 @@ Phase 26 adds the complete [testing matrix](docs/testing.md), including an
 end-to-end MVP test that returns after 48 hours, performs every care action,
 levels up, changes growth stage, claims a daily reward, purchases an item and
 verifies inventory and account isolation. It needs no migration.
+Phase 27 connects owned Corn, Peas and Sunflower Seeds to the Feed menu. Each
+meal uses the effects stored in the item catalogue and atomically removes one
+item; safe retries never consume a second item. Apply
+`migrations/018_inventory_feeding.sql` once after 017. Free Crumbs remain
+available and do not consume inventory. See the [feeding guide](docs/feed.md).
 
 See [the model, migration instructions and phase boundaries](docs/tamagotchi-model.md).
 Run `npm run test:game` to execute the schema tests locally with PGlite; no hosted
@@ -237,7 +242,7 @@ This produces SQL only; it does not apply it to any database.
 The current three starter breeds are included in `migrations/002_adoption.sql`.
 `npm run seed:adoption` refreshes its generated breed section from the domestic
 catalogue and reviewed photo credits. Apply migrations in order: 001, the original
-species seed, then 002 through 017 in order. Do not rerun migrations after they have succeeded.
+species seed, then 002 through 018 in order. Do not rerun migrations after they have succeeded.
 `npm run test:adoption` covers the actual SQL adoption function through HTTP tests
 with simulated Supabase Auth and a local PGlite database.
 

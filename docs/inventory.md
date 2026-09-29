@@ -15,8 +15,9 @@ De eerste vier items zijn:
 
 Prijzen en effecten worden in de database bewaard. De browser bepaalt deze
 waarden niet. Fase 15 voegt geen items toe aan bestaande accounts. Sinds fase 16
-kun je items veilig kopen in de [Shop](shop.md). Het verbruiken van inventory-food
-volgt later; gratis Crumbs op het verzorgingsscherm blijven werken.
+kun je items veilig kopen in de [Shop](shop.md). Sinds fase 27 kun je Corn, Peas
+en Sunflower Seeds vanuit Inventory aan je duif geven. Gratis Crumbs blijven
+altijd beschikbaar en gebruiken geen inventaris.
 
 ## Eenmalig activeren
 
@@ -69,3 +70,11 @@ inloggen. De pagina is daarnaast handmatig gecontroleerd op desktop en mobiel.
 
 Fase 16 voegt de [Shop](shop.md) met server-side aankopen, coincontrole en veilige
 retries toe. De volgende grote fase is **17: consistente navigatie**.
+
+## Inventory-food gebruiken
+
+Voer `migrations/018_inventory_feeding.sql` één keer uit na migratie 017. Een
+kaart met voorraad toont daarna **Give to pigeon**. Die knop opent het voermenu
+met het gekozen item geselecteerd. De database past de cataloguseffecten toe en
+trekt in dezelfde transactie precies één item af. Een cooldown, fout of veilige
+herhaling verbruikt geen extra voorraad.

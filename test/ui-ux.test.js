@@ -13,7 +13,9 @@ const pigeon={
 };
 
 test('dashboard centers the pigeon and exposes clear saved-state labels and shortcut cards',()=>{
-  const html=renderPigeonPage(pigeon,{username:'Bird',coins:50,coins_version:1});
+  const html=renderPigeonPage(pigeon,{username:'Bird',coins:50,coins_version:1},{quests:[]},{achievements:[],unlockedCount:0,total:5},{items:[
+    {id:'corn',name:'Corn',type:'food',description:'Golden kernels',image:'/assets/items/corn.svg',quantity:1,hunger_effect:22,happiness_effect:3,energy_effect:0,cleanliness_effect:0}
+  ]});
   assert.match(html,/id="pigeonHero" data-pigeon-state="happy hungry dirty tired"/);
   assert.match(html,/data-mood-label>Happy · Hungry · Needs a wash · Tired/);
   assert.match(html,/class="pigeon-scene"/);
@@ -21,6 +23,8 @@ test('dashboard centers the pigeon and exposes clear saved-state labels and shor
   assert.match(html,/href="\/inventory"[\s\S]*>Inventory</);
   assert.match(html,/href="\/shop"[\s\S]*>Shop</);
   assert.match(html,/src="\/pigeon-ui\.js" defer/);
+  assert.match(html,/data-food-choice="corn"[\s\S]*Owned: <b data-food-quantity>1/);
+  assert.match(html,/name="food" value="corn"/);
 });
 
 test('client presentation state follows authoritative pigeon values',()=>{

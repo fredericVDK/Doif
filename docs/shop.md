@@ -72,7 +72,7 @@ originbeveiliging, RLS, serverrechten, opslagfouten en opnieuw inloggen.
   `server.js`, `test-support/auth-fixture.js`, `test-support/preview-adoption.js`,
   `package.json`, `README.md` en inventory-/dashboarddocumentatie.
 
-Gekochte items worden al blijvend opgeslagen. Het gebruiken van inventory-food
-wordt in een latere verzorgingsuitbreiding gekoppeld; gratis Crumbs blijven nu
-beschikbaar. Fase 17 voegt de [consistente navigatie](navigation.md) toe. Fase 18
+Gekochte items worden blijvend opgeslagen en kunnen sinds migratie 018 via Feed
+worden gebruikt; gratis Crumbs blijven beschikbaar. Fase 17 voegt de
+[consistente navigatie](navigation.md) toe. Fase 18
 voegt [dagelijkse opdrachten](daily-quests.md) toe met coins en XP als beloning.

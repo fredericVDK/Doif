@@ -1,7 +1,9 @@
-# Voeren — fase 6
+# Voeren — fase 6 en inventory-food (fase 27)
 
-Op `/my-pigeon` opent **Feed** een voedselkeuze met **Crumbs**. Een maaltijd geeft
-maximaal +15 Hunger en +2 Happiness, plus +5 XP. Statistieken stoppen op 100.
+Op `/my-pigeon` opent **Feed** een voedselkeuze met gratis **Crumbs** en de Corn,
+Peas of Sunflower Seeds die de speler bezit. De effecten komen uit de centrale
+itemcatalogus. Elke maaltijd geeft daarnaast +5 XP en +2 coins. Statistieken
+stoppen op 100.
 Na opslaan sluiten we de voedselkeuze, werken de balken en XP bij en verschijnt
 bijvoorbeeld “Gilbert enjoyed the crumbs!”. De melding toont de werkelijke winst.
 
@@ -15,8 +17,10 @@ maar nog niet op het echte project uitgevoerd.
 2. Kopieer de volledige inhoud van `migrations/004_feed.sql` en klik **Run**.
    Voer dit bestand één keer uit, na de bestaande migraties 001–003.
 3. Herstart de bestaande lokale server met Ctrl+C en daarna `npm start`.
-4. Open [Mijn duif](http://localhost:3037/my-pigeon), kies **Feed** en vervolgens
-   **Give crumbs**. Controleer de succesmelding en de 5 extra XP.
+4. Voer na de overige migraties ook `migrations/018_inventory_feeding.sql` één
+   keer uit, na migratie 017.
+5. Open [Mijn duif](http://localhost:3037/my-pigeon), kies **Feed** en geef
+   Crumbs of een item uit je inventaris.
 
 Er zijn geen nieuwe sleutels of accountinstellingen nodig. De bestaande duif en
 voortgang blijven behouden. Zonder 004 kan de maaltijd niet worden opgeslagen;
@@ -24,8 +28,8 @@ de interface toont dan een fout en kent geen voorlopige beloning toe.
 
 ## Spelregels en opslag
 
-- Crumbs zijn gratis. Ook bij volle balken geeft een geslaagde maaltijd 5 XP;
-  de winst voor een volle statistiek is 0. Coins en inventory veranderen niet.
+- Crumbs zijn gratis. Corn, Peas en Sunflower Seeds kosten precies één exemplaar
+  uit de eigen inventaris. Bij volle balken is de winst voor die statistiek 0.
 - De database handhaaft 10 seconden tussen maaltijden. De server begrenst ook
   het aantal verzoeken. De browser toont tijdens de wachttijd een aftelling.
 - De server bepaalt de speler via de geverifieerde sessie. De browser stuurt
@@ -34,7 +38,8 @@ de interface toont dan een fout en kent geen voorlopige beloning toe.
 - `feed_game_pigeon` vergrendelt dezelfde duifrij als de tijdsengine, berekent
   het tijdsverloop met `calculate_current_pigeon_state` en slaat voeding, XP,
   tijdstempels en een ontvangstbewijs in één transactie op.
-- Een dubbel verzoek met dezelfde UUID telt één keer. Na een verbindingsfout
+- Een dubbel verzoek met dezelfde UUID telt één keer en verbruikt hoogstens één
+  item. Na een verbindingsfout
   bewaart de browser de UUID in sessionStorage om veilig opnieuw te proberen.
   Een herhaald verzoek toont de huidige duif zonder opnieuw XP toe te kennen,
   ook als er inmiddels andere maaltijden waren. Zonder sessionStorage blijft
