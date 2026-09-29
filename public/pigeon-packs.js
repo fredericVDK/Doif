@@ -9,6 +9,7 @@
   function resetText(button){button.textContent=button.dataset.packBuy==='normal'?'Open Normal Pack':'Open Big Pack';}
   function applyAvailability(data){
     window.PigeonCare?.update(data);
+    if(data.wallet){const page=document.querySelector('[data-shop-balance]');if(page)window.dispatchEvent(new CustomEvent('pigeon-wallet-updated',{detail:{coins:Number(data.wallet.coins),version:Number(data.wallet.version)}}));}
     for(const pack of data.packs||[]){
       const button=root.querySelector(`[data-pack-buy="${pack.id}"]`);if(!button)continue;
       button.disabled=busy||!pack.available;

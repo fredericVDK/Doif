@@ -35,4 +35,5 @@
     } finally {busy=false;refreshButtons();}
   }));
   refreshButtons();
+  window.addEventListener('pigeon-wallet-updated',event=>{balance=Number(event.detail.coins);page.dataset.shopBalance=String(balance);document.getElementById('shopCoins').textContent=balance.toLocaleString('en');refreshButtons();});
 })();

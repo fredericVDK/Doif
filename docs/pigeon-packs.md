@@ -1,6 +1,6 @@
 # Pigeon Packs — fase 30
 
-Op `/my-pigeon` kunnen ingelogde spelers twee soorten packs openen:
+In de `/shop` kunnen ingelogde spelers naast voedsel ook twee soorten packs openen:
 
 | Pack | Inhoud | Prijs | Limiet |
 | --- | ---: | ---: | --- |

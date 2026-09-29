@@ -237,7 +237,7 @@ Apply `migrations/021_battle_health.sql` afterward to enable the loss penalty, t
 `migrations/022_level_scaled_battle_damage.sql` to scale damage with level.
 
 Pigeon Packs add a 300-coin daily Normal Pack with two random photo-verified
-pigeons and a 900-coin weekly Big Pack with five. A previously discovered pigeon
+pigeons and a 900-coin weekly Big Pack with five, both presented in the Shop. A previously discovered pigeon
 returns 50 coins. Purchases, UTC limits, random catalogue selection, discovery
 writes and refunds are server-owned and idempotent. Apply
 `migrations/023_pigeon_packs.sql` once after migration 022; see
@@ -246,6 +246,10 @@ Phase 31 adds the [Pigeon Clinic](docs/pigeon-clinic.md) to My Pigeon. A
 server-authoritative visit costs 100 coins and restores the pigeon to 100 Health;
 full Health is never charged and retries count once. Apply
 `migrations/024_pigeon_clinic.sql` once after migration 023.
+Phase 32 expands progression with seven daily quests and ten permanent
+achievements. Sleep, Battle and Catch the Crumbs now have daily goals; long-term
+goals cover battles, packs, clinic visits, minigame rounds and 100 discoveries.
+Apply `migrations/025_more_quests_achievements.sql` once after migration 024.
 The player-facing catalogue is photo-only: 269 wild species and 137 domestic
 breeds currently qualify. Records that would use the generic replacement image
 are excluded from PigeonDex, daily discovery and catalogue API results.
