@@ -114,6 +114,7 @@ test('protected game page links from the roost and renders accessible controls',
   const anon=await fixture(t,{gameDb:db});assert.equal((await anon.request('/catch-the-crumbs')).headers.get('location'),'/sign-in');
   const f=await account(t),roost=await (await f.request('/my-pigeon')).text(),response=await f.request('/catch-the-crumbs'),html=await response.text();
   assert.match(roost,/href="\/catch-the-crumbs"/);assert.equal(response.status,200);assert.match(html,/Catch the Crumbs/);assert.match(html,/id="crumbBoard"/);assert.match(html,/aria-label="Move pigeon left"/);assert.match(html,/crumb-game\.js/);
+  assert.match(read('public/crumb-game.css'),/\.crumb-game-page \{[^}]*border:1px solid #c8ac65/);assert.match(read('public/pigeon-dashboard.css'),/\.minigame-invite \{[^}]*border:1px solid #c8ac65/);
 });
 
 test('run storage and score functions remain server-only with own-read RLS',async t=>{

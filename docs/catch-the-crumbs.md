@@ -6,7 +6,9 @@ and catches falling crumbs. The score rises once per caught crumb.
 
 The game is available from **My Pigeon** at `/catch-the-crumbs`. It works with a
 keyboard and touch controls, exposes its timer and score to assistive technology,
-and adapts the playfield for mobile screens.
+and adapts the playfield for mobile screens. Both the dashboard invitation and
+the complete game now sit inside a warm, responsive framed card matching the
+care, quest and activity sections.
 
 ## Server validation
 

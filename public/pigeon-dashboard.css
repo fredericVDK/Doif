@@ -93,6 +93,12 @@
 .care-action strong { display: block; font-size: 15px; }
 .care-action small { display: block; margin-top: 5px; font-size: 11px; line-height: 1.4; }
 .saved-status { margin: 22px 0 0; text-align: center; }
+.minigame-invite { position:relative; display:flex; justify-content:space-between; align-items:center; gap:24px; margin-top:32px; padding:28px 30px 28px 88px; overflow:hidden; border:1px solid #c8ac65; border-radius:12px; background:linear-gradient(135deg,#fff8dc,#f3e3ad); box-shadow:0 8px 24px rgb(87 70 28 / 8%); }
+.minigame-invite::before { content:"🍞"; position:absolute; left:25px; display:grid; place-items:center; width:46px; height:46px; border:1px solid #c8ac65; border-radius:50%; background:#fffdf5; font-size:23px; }
+.minigame-invite::after { content:""; position:absolute; right:-45px; bottom:-70px; width:150px; height:150px; border:24px solid rgb(128 95 37 / 7%); border-radius:50%; }
+.minigame-invite>* { position:relative; z-index:1; }
+.minigame-invite h2 { margin:6px 0; font-size:23px; }.minigame-invite p:not(.eyebrow) { margin:0; color:#655018; font-size:13px; line-height:1.5; }
+.minigame-invite .primary-button { flex:0 0 auto; text-decoration:none; }
 .daily-quests { padding: 26px; border: 1px solid var(--line); border-radius: 8px; background: #faf7ea; }
 .daily-quests .section-heading { margin-bottom: 8px; }
 .quest-reset { color: var(--muted); font-size: 12px; }
@@ -157,6 +163,8 @@
   .daily-quests { padding: 20px 16px; }
   .achievements { padding: 20px 16px; }
   .quest-list { grid-template-columns: 1fr; }
+  .minigame-invite { align-items:flex-start; flex-direction:column; padding:76px 18px 20px; }
+  .minigame-invite::before { top:18px; left:18px; }
   .quest-card { align-items: flex-start; }
   .achievement-card { grid-template-columns: auto minmax(0,1fr); align-items: start; }
   .achievement-claim { grid-column: 2; justify-self: start; }

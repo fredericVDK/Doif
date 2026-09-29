@@ -1,11 +1,14 @@
-.crumb-game-page { max-width: 920px; margin: 0 auto; }
+.crumb-game-page { position:relative; max-width: 920px; margin: 0 auto; padding:32px; overflow:hidden; border:1px solid #c8ac65; border-radius:16px; background:linear-gradient(145deg,#fffdf5 0,#f3efdf 68%,#e8e3d2 100%); box-shadow:0 18px 45px rgb(39 48 43 / 10%); }
+.crumb-game-page::before { content:""; position:absolute; top:-85px; right:-70px; width:220px; height:220px; border:36px solid rgb(200 172 101 / 12%); border-radius:50%; pointer-events:none; }
+.crumb-game-page::after { content:""; position:absolute; bottom:-85px; left:-65px; width:180px; height:180px; border:28px solid rgb(95 121 91 / 9%); border-radius:50%; pointer-events:none; }
 .crumb-game-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 28px; margin-bottom: 24px; }
+.crumb-game-heading,.crumb-game-card,.game-note,.back-to-roost { position:relative; z-index:1; }
 .crumb-game-heading h1 { margin: 8px 0 10px; font-size: clamp(36px,6vw,64px); line-height: 1; letter-spacing: -1.5px; }
 .crumb-game-heading p:not(.eyebrow) { max-width: 580px; margin: 0; color: var(--muted); line-height: 1.6; }
 .crumb-game-wallet { flex: 0 0 auto; min-width: 145px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); text-align: right; }
 .crumb-game-wallet span,.crumb-game-wallet small { display: block; color: var(--muted); font-size: 11px; }
 .crumb-game-wallet strong { display: block; margin: 5px 0; color: #805f25; font-size: 24px; }
-.crumb-game-card { padding: 20px; border: 1px solid var(--line); border-radius: 10px; background: #e9ecdf; }
+.crumb-game-card { padding: 22px; border: 1px solid #9faf94; border-radius: 12px; background:linear-gradient(180deg,#edf1e6,#e4e8dc); box-shadow:inset 0 1px rgb(255 255 255 / 75%),0 8px 22px rgb(44 57 45 / 8%); }
 .crumb-game-stats { display: flex; justify-content: center; gap: 12px; margin-bottom: 12px; }
 .crumb-game-stats div { min-width: 100px; padding: 9px 16px; border: 1px solid #cbd1c3; border-radius: 7px; background: var(--panel); text-align: center; }
 .crumb-game-stats span { display: block; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
@@ -26,12 +29,9 @@
 .game-status[data-error="true"] { color:#843d36; }
 .game-note { margin:16px auto; max-width:720px; color:var(--muted); font-size:12px; line-height:1.6; text-align:center; }
 .back-to-roost { display:block; width:max-content; margin:20px auto 0; font-size:13px; }
-.minigame-invite { display:flex; justify-content:space-between; align-items:center; gap:24px; margin-top:32px; padding:24px 26px; border:1px solid #c8ac65; border-radius:8px; background:#faf0cc; }
-.minigame-invite h2 { margin:6px 0; font-size:23px; }.minigame-invite p:not(.eyebrow) { margin:0; color:#655018; font-size:13px; line-height:1.5; }
-.minigame-invite .primary-button { flex:0 0 auto; text-decoration:none; }
 @media (max-width:620px) {
+  .crumb-game-page { padding:20px 14px; border-radius:12px; }
   .crumb-game-heading { display:block; }.crumb-game-wallet { margin-top:18px; text-align:left; }
   .crumb-game-card { padding:12px; }.crumb-board { aspect-ratio:3/4; min-height:430px; }
-  .minigame-invite { align-items:flex-start; flex-direction:column; padding:20px 16px; }
   .game-controls { grid-template-columns:64px 1fr 64px; }
 }

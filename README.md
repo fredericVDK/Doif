@@ -253,6 +253,9 @@ Apply `migrations/025_more_quests_achievements.sql` once after migration 024.
 Phase 33 adds a full-screen Pigeon Pack opening sequence: a Jacobin wrapper tears
 open and deals the real two or five reward cards before offering PigeonDex and
 close actions.
+Phase 34 frames Catch the Crumbs on the dashboard and game page, and expands the
+permanent progression track to 20 achievements. Apply
+`migrations/026_more_permanent_achievements.sql` once after migration 025.
 The player-facing catalogue is photo-only: 269 wild species and 137 domestic
 breeds currently qualify. Records that would use the generic replacement image
 are excluded from PigeonDex, daily discovery and catalogue API results.
