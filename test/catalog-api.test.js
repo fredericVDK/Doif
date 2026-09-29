@@ -11,8 +11,8 @@ process.env.AIRTABLE_API_KEY = "";
 process.env.AIRTABLE_BASE_ID = "";
 const source = records => ({ records, cachedAt: new Date().toISOString(), expiresAt: Date.now() + 3600000, status: "live" });
 fs.writeFileSync(process.env.DATA_FILE, JSON.stringify({ catalogCache: {
-  birdnet: source([normalizeSpecies({ birdnet_id: "BN03520", scientific_name: "Columba palumbus", common_name: "Wood Pigeon" })]),
-  domestic: source([{ id: "english pouter", name: "English Pouter", image: "assets/pigeon-hero-wide.png" }])
+  birdnet: source([normalizeSpecies({ birdnet_id: "BN03520", scientific_name: "Columba palumbus", common_name: "Wood Pigeon",image:{src:"https://example.org/wood.jpg",license:"cc-by"} })]),
+  domestic: source([{ id: "english pouter", name: "English Pouter", image: "https://example.org/pouter.jpg",hasRealImage:true }])
 } }));
 const handle = require("../server");
 

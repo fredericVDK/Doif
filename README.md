@@ -230,8 +230,13 @@ MVP and regression suite. New phase 29 adds server-authoritative
 [Pigeon Battles](docs/pigeon-battles.md) directly on My Pigeon: an opponent is
 selected automatically, difficulty rises with level, losses award no XP and a
 win awards `15 + (level × 3)` XP. Apply `migrations/019_pigeon_battles.sql` after 018.
+Losing also removes up to 5 Health, without allowing a negative stat.
 Projects that already ran the first opponent-selection version of migration 019
 must run `migrations/020_automatic_battles.sql` instead of rerunning 019.
+Apply `migrations/021_battle_health.sql` afterward to enable the loss penalty.
+The player-facing catalogue is photo-only: 269 wild species and 137 domestic
+breeds currently qualify. Records that would use the generic replacement image
+are excluded from PigeonDex, daily discovery and catalogue API results.
 
 See [the model, migration instructions and phase boundaries](docs/tamagotchi-model.md).
 Run `npm run test:game` to execute the schema tests locally with PGlite; no hosted

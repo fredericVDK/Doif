@@ -17,7 +17,7 @@
       if(!response.ok){if([400,401,403,409].includes(response.status))clearPending();if(response.status===429){cooldownUntil=Date.now()+(Number(data.retryAfter)||30)*1000;clearInterval(timer);timer=setInterval(countdown,1000);}throw new Error(data.error||'The battle could not be confirmed.');}
       window.PigeonCare.update(data);window.PigeonUI?.animate('playing',data.pigeon);
       result.className=`battle-result ${data.won?'battle-win':'battle-loss'}`;
-      result.textContent=data.replayed?`This battle was already saved. Its reward was counted once.`:data.won?`${data.pigeon.nickname} defeated Level ${data.opponentLevel} ${data.opponent.name}! +${data.effects.xp} XP`:`Level ${data.opponentLevel} ${data.opponent.name} won. No XP this time — care for ${data.pigeon.nickname} and try again.`;
+      result.textContent=data.replayed?`This battle was already saved. Its result was counted once.`:data.won?`${data.pigeon.nickname} defeated Level ${data.opponentLevel} ${data.opponent.name}! +${data.effects.xp} XP`:`Level ${data.opponentLevel} ${data.opponent.name} won. No XP and ${data.effects.health} Health — care for ${data.pigeon.nickname} and try again.`;
       clearPending();cooldownUntil=Date.now()+30000;clearInterval(timer);timer=setInterval(countdown,1000);
     }catch(error){result.dataset.error='true';result.textContent=error instanceof TypeError||error.name==='TimeoutError'||error.name==='SyntaxError'?'We could not confirm the battle. Try again; the same battle only counts once.':error.message;}
     finally{busy=false;countdown();}

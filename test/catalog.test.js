@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { fetchBirdnetSpecies, normalizeSpecies, isPigeon } = require("../lib/birdnet");
-const { createCatalog, mergeRecords } = require("../lib/catalog");
+const { createCatalog, mergeRecords,hasRealPhoto } = require("../lib/catalog");
 
 function bird(id, scientificName = "Columba palumbus") {
   return { birdnet_id: `BN${id}`, scientific_name: scientificName, common_name: "Wood Pigeon",
@@ -56,13 +56,25 @@ test("domestic breeds retain their IDs alongside the parent species", () => {
   assert.equal(records.find(row => row.kind === "breed").parentScientificName, "Columba livia");
 });
 
+test("the player catalogue includes only pigeons with a real photo", async()=>{
+  const birdnet=require('../data/birdnet-pigeons.json').records;
+  const domestic=require('../data/domestic-pigeons.json').records;
+  const expected=mergeRecords(birdnet,domestic).filter(hasRealPhoto);
+  assert.equal(expected.length,406);
+  assert.ok(expected.every(row=>row.hasRealImage===true&&row.image!=="assets/pigeon-hero-wide.png"));
+  const get=createCatalog({loadSpecies:async()=>({records:birdnet}),loadDomestic:async()=>({records:domestic}),readSaved:()=>({}),save:()=>{},now:()=>1000});
+  const catalog=await get();
+  assert.equal(catalog.count,406);
+  assert.deepEqual(catalog.counts,{species:269,breeds:137});
+});
+
 test("one refresh is shared by concurrent requests and source failures preserve saved breeds", async () => {
   let calls = 0; let saved;
   const get = createCatalog({
     loadSpecies: async () => { calls++; return { records: [normalizeSpecies(bird(1))] }; },
     loadDomestic: async () => { throw new Error("Wikipedia offline"); },
     readSaved: () => ({}), save: value => { saved = value; }, now: () => 1000,
-    snapshots: { domestic: { records: [{ id: "fantail", name: "Fantail" }], expiresAt: 0, cachedAt: "old" } }
+    snapshots: { domestic: { records: [{ id: "fantail", name: "Fantail",image:"https://example.org/fantail.jpg",hasRealImage:true }], expiresAt: 0, cachedAt: "old" } }
   });
   const [a, b] = await Promise.all([get(), get()]);
   assert.equal(a, b); assert.equal(calls, 1);
@@ -74,7 +86,7 @@ test("one refresh is shared by concurrent requests and source failures preserve 
 
 test("BirdNET outage uses its snapshot while supplemental breeds still load", async () => {
   const get = createCatalog({ loadSpecies: async () => { throw new Error("offline"); },
-    loadDomestic: async () => ({ records: [{ id: "fantail", name: "Fantail" }] }),
+    loadDomestic: async () => ({ records: [{ id: "fantail", name: "Fantail",image:"https://example.org/fantail.jpg",hasRealImage:true }] }),
     readSaved: () => ({}), save: () => {}, now: () => 1000,
     snapshots: { birdnet: { records: [normalizeSpecies(bird(1))], expiresAt: 0 } } });
   const result = await get();
@@ -85,7 +97,7 @@ test("BirdNET outage uses its snapshot while supplemental breeds still load", as
 test("an unavailable source is reported and retried after five minutes", async () => {
   let time = 1000; let calls = 0;
   const get = createCatalog({ loadSpecies: async () => { calls++; throw new Error("offline"); },
-    loadDomestic: async () => ({ records: [{ id: "fantail", name: "Fantail" }] }),
+    loadDomestic: async () => ({ records: [{ id: "fantail", name: "Fantail",image:"https://example.org/fantail.jpg",hasRealImage:true }] }),
     readSaved: () => ({}), save: () => {}, now: () => time });
   assert.equal((await get()).sources.birdnet.status, "unavailable");
   time += 300001; await get(); assert.equal(calls, 2);

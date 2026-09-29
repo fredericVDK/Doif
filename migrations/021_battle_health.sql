@@ -1,5 +1,5 @@
--- Upgrade an already-installed first version of migration 019 to automatic battles.
--- Safe to run once after either version of 019_pigeon_battles.sql.
+-- Add the small Health penalty for a lost automatic battle.
+-- Safe to run once after 020_automatic_battles.sql.
 BEGIN;
 
 DROP FUNCTION IF EXISTS public.battle_game_pigeon(uuid,uuid,text);

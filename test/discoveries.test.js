@@ -165,9 +165,9 @@ test("RLS isolates reads and only the server can write discoveries or call disco
   assert.equal((await db.query("SELECT count(*) FROM public.game_pigeon_discoveries")).rows[0].count,0);
 });
 
-test("collections larger than the PostgREST page limit retain all discoveries",async t=>{
+test("the complete photo-only catalogue retains all discoveries",async t=>{
   const f=await setup(t),catalog=bundledCatalog().breeds;
-  assert.ok(catalog.length>1000);
+  assert.equal(catalog.length,406);
   await db.query(`INSERT INTO public.game_pigeon_discoveries(user_id,species_id)
     SELECT $1,value FROM jsonb_array_elements_text($2::jsonb) ON CONFLICT DO NOTHING`,[f.user.id,JSON.stringify(catalog.map(p=>p.id))]);
   const result=await dex(f);

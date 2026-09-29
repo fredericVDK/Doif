@@ -1,5 +1,10 @@
 # Persoonlijke PigeonDex — fase 13
 
+De spelerscatalogus bevat uitsluitend records met een echte, toegelaten foto.
+Met de huidige snapshots zijn dat 406 duiven: 269 soorten en 137 rassen. Records
+met de algemene vervangingsafbeelding tellen niet mee en verschijnen niet in de
+PigeonDex of dagelijkse ontdekking.
+
 De bestaande PigeonDex is gekoppeld aan het account- en gamesysteem. Iedere
 ingelogde speler heeft een eigen verzameling. Ontdekte duiven tonen hun echte
 naam, foto, wetenschappelijke naam, informatie en bronvermelding uit de bestaande
