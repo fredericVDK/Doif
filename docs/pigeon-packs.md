@@ -7,6 +7,12 @@ In de `/shop` kunnen ingelogde spelers naast voedsel ook twee soorten packs open
 | Normal Pack | 2 willekeurige duiven | 300 coins | eenmaal per UTC-dag |
 | Big Pack | 5 willekeurige duiven | 900 coins | eenmaal per UTC-week |
 
+Na aankoop verschijnt een schermvullende packanimatie met een Jacobin pigeon op
+de verpakking. De verpakking scheurt open en deelt de echte serverresultaten één
+voor één uit. Iedere kaart toont of de duif nieuw is of hoeveel coins een
+duplicate terugbetaalt. Daarna kan de speler het venster sluiten of meteen naar
+de PigeonDex.
+
 De wekelijkse periode begint maandag om 00:00 UTC. Iedere duif komt uit de
 foto-gecontroleerde PigeonDex-catalogus. Een pack bevat geen dubbele IDs binnen
 dezelfde opening, maar kan wel een duif bevatten die de speler al eerder vond.

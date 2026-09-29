@@ -250,6 +250,9 @@ Phase 32 expands progression with seven daily quests and ten permanent
 achievements. Sleep, Battle and Catch the Crumbs now have daily goals; long-term
 goals cover battles, packs, clinic visits, minigame rounds and 100 discoveries.
 Apply `migrations/025_more_quests_achievements.sql` once after migration 024.
+Phase 33 adds a full-screen Pigeon Pack opening sequence: a Jacobin wrapper tears
+open and deals the real two or five reward cards before offering PigeonDex and
+close actions.
 The player-facing catalogue is photo-only: 269 wild species and 137 domestic
 breeds currently qualify. Records that would use the generic replacement image
 are excluded from PigeonDex, daily discovery and catalogue API results.
