@@ -4,8 +4,9 @@ Op `/my-pigeon` start **Battle** meteen een gevecht tegen een automatisch gekoze
 starterras. Een gevecht kost 10 Energy. Verlies geeft geen XP. Bij winst is de
 beloning `15 + (level × 3)` XP, zodat een moeilijker gevecht op een hoger level
 ook duidelijk meer oplevert. De centrale XP- en groeilogica verwerkt level-ups.
-Bij verlies verliest de duif maximaal 5 Health; Health zakt nooit onder 0. Een
-overwinning kost geen Health.
+Bij verlies is de schade `4 + level` Health, met een maximum van 20. Een duif
+op level 1 verliest dus 5 Health en op level 10 14 Health. Health zakt nooit
+onder 0. Een overwinning kost geen Health.
 
 De browser maakt alleen een unieke request-ID. De database kiest de tegenstander,
 berekent de stijgende moeilijkheid en bepaalt de uitslag. Dezelfde request-ID kan maar
@@ -26,6 +27,10 @@ kolommen, eerdere battles of voortgang opnieuw aan te maken.
 
 Voer daarna `migrations/021_battle_health.sql` één keer uit om het Health-verlies
 bij een verloren gevecht te activeren.
+
+Heb je migratie 021 al uitgevoerd? Voer dan ook
+`migrations/022_level_scaled_battle_damage.sql` één keer uit om de schade met het
+level te laten stijgen.
 
 Migratie 019 bewaart bestaande accounts en voortgang. Ze voegt alleen het
 laatste gevechtstijdstip en idempotente battle receipts toe.

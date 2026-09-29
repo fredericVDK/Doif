@@ -1,27 +1,10 @@
--- Phase 29. Server-authoritative pigeon battles with XP rewards.
--- Apply once after 018_inventory_feeding.sql.
+-- Scale lost-battle Health damage with the pigeon's level.
+-- Safe to run once after 021_battle_health.sql.
 BEGIN;
 
-ALTER TABLE public.game_pigeons ADD COLUMN last_battled_at timestamptz
-  CHECK (last_battled_at IS NULL OR isfinite(last_battled_at));
+DROP FUNCTION IF EXISTS public.battle_game_pigeon(uuid,uuid,text);
 
-CREATE TABLE public.game_battle_receipts (
-  user_id uuid NOT NULL REFERENCES public.game_users(id) ON DELETE CASCADE,
-  request_id uuid NOT NULL,
-  pigeon_id uuid NOT NULL REFERENCES public.game_pigeons(id) ON DELETE CASCADE,
-  opponent_species_id text NOT NULL REFERENCES public.game_species(id) ON DELETE RESTRICT,
-  result jsonb NOT NULL CHECK (jsonb_typeof(result)='object'),
-  battled_at timestamptz NOT NULL DEFAULT clock_timestamp() CHECK (isfinite(battled_at)),
-  PRIMARY KEY(user_id,request_id)
-);
-ALTER TABLE public.game_battle_receipts ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.game_battle_receipts FROM PUBLIC,anon,authenticated,service_role;
-GRANT SELECT ON public.game_battle_receipts TO authenticated;
-GRANT SELECT,INSERT,UPDATE,DELETE ON public.game_battle_receipts TO service_role;
-CREATE POLICY battle_receipts_read_own ON public.game_battle_receipts
-  FOR SELECT TO authenticated USING ((SELECT auth.uid())=user_id);
-
-CREATE FUNCTION public.battle_game_pigeon(p_user_id uuid,p_request_id uuid)
+CREATE OR REPLACE FUNCTION public.battle_game_pigeon(p_user_id uuid,p_request_id uuid)
 RETURNS jsonb LANGUAGE plpgsql VOLATILE SECURITY INVOKER SET search_path='' AS $$
 DECLARE
   saved public.game_pigeons%ROWTYPE;
@@ -49,8 +32,6 @@ BEGIN
   IF FOUND THEN
     RETURN receipt || jsonb_build_object('pigeon',public.refresh_game_pigeon(p_user_id),'replayed',true);
   END IF;
-  -- Pick one of the other starter breeds from the request ID. The client cannot
-  -- choose an easier opponent or submit its own outcome.
   SELECT * INTO opponent FROM public.game_species
     WHERE is_starter=true AND id<>saved.species_id
     ORDER BY md5(id||p_request_id::text) LIMIT 1;
@@ -92,6 +73,7 @@ BEGIN
   RETURN result;
 END;
 $$;
+
 REVOKE ALL ON FUNCTION public.battle_game_pigeon(uuid,uuid) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.battle_game_pigeon(uuid,uuid) TO service_role;
 NOTIFY pgrst,'reload schema';

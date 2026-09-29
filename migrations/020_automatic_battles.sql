@@ -53,7 +53,7 @@ BEGIN
   opponent_level:=current_state.level+greatest(1,floor(current_state.level/5.0)::integer);
   won:=battle_roll>=difficulty;
   xp_gain:=CASE WHEN won THEN 15+current_state.level*3 ELSE 0 END;
-  health_loss:=CASE WHEN won THEN 0 ELSE least(5,current_state.health) END;
+  health_loss:=CASE WHEN won THEN 0 ELSE least(20,4+current_state.level,current_state.health) END;
   player_power:=battle_roll;
   opponent_power:=difficulty;
   current_state.energy:=current_state.energy-10;
