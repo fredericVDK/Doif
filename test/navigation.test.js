@@ -2,7 +2,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const {test}=require('node:test');
-const {LINKS,renderNavigation}=require('../lib/navigation');
+const {LINKS,PUBLIC_LINKS,TAMAGOTCHI_LINKS,renderNavigation}=require('../lib/navigation');
 const {renderAuthPage}=require('../lib/auth/pages');
 const {renderInventoryPage,renderShopPage}=require('../lib/game/pages');
 const read=file=>fs.readFileSync(path.join(__dirname,'..',file),'utf8');
@@ -16,32 +16,43 @@ function anchors(html) {return [...html.matchAll(/<a href="([^"]+)"([^>]*)>([^<]
 
 test('central navigation defines the requested destinations in one stable order',()=>{
   assert.deepEqual(LINKS,core);
-  const basic=anchors(renderNavigation('shop'));
-  assert.deepEqual(basic.map(({href,label})=>[href,label]),core.map(([,href,label])=>[href,label]));
-  assert.equal(basic.filter(link=>link.attrs.includes('aria-current="page"')).length,1);
-  assert.equal(basic.find(link=>link.label==='Shop').attrs.includes('aria-current="page"'),true);
-  assert.doesNotMatch(renderNavigation(),/Sign out|Admin/);
-  assert.match(renderNavigation(undefined,{signedIn:true}),/href="\/logout">Sign out/);
+  assert.deepEqual(TAMAGOTCHI_LINKS.map(([,href,label])=>[href,label]),[
+    ['/my-pigeon','My Pigeon'],['/shop','Shop'],['/inventory','Inventory']
+  ]);
+  const basic=anchors(renderNavigation('home'));
+  assert.deepEqual(basic.map(({href,label})=>[href,label]),[
+    ...PUBLIC_LINKS.map(([,href,label])=>[href,label]),['/sign-in','Login']
+  ]);
+  assert.doesNotMatch(renderNavigation(),/My Pigeon|Shop|Inventory|Sign out|Admin/);
+  assert.match(renderNavigation(),/href="\/sign-in" class="login-link">Login/);
+  const signedIn=anchors(renderNavigation('shop',{signedIn:true}));
+  assert.deepEqual(signedIn.slice(0,-1).map(({href,label})=>[href,label]),core.map(([,href,label])=>[href,label]));
+  assert.equal(signedIn.find(link=>link.label==='Shop').attrs.includes('aria-current="page"'),true);
+  assert.equal(signedIn.at(-1).label,'Sign out');
   assert.match(renderNavigation('admin',{admin:true}),/href="\/admin\.html" aria-current="page">Admin/);
 });
 
-test('every public page exposes the same core navigation and its own current page',()=>{
+test('public pages start with public links and login without exposing Tamagotchi links',()=>{
   const pages=[
     ['public/index.html','Home'],['public/pigeondex.html','PigeonDex'],['public/pigder.html','Pigder'],
-    ['public/drawings.html','Drawings'],['public/api-docs.html','API'],['public/admin.html','Admin']
+    ['public/drawings.html','Drawings'],['public/api-docs.html','API'],['public/admin.html',null]
   ];
   for(const [file,current] of pages) {
     const html=read(file),links=anchors(nav(html));
-    assert.deepEqual(links.slice(0,8).map(({href,label})=>[href,label]),core.map(([,href,label])=>[href,label]),file);
-    assert.equal(links.filter(link=>link.attrs.includes('aria-current="page"')).length,1,file);
-    assert.equal(links.find(link=>link.attrs.includes('aria-current="page"')).label,current,file);
+    assert.deepEqual(links.map(({href,label})=>[href,label]),[
+      ...PUBLIC_LINKS.map(([,href,label])=>[href,label]),['/sign-in','Login']
+    ],file);
+    assert.doesNotMatch(nav(html),/My Pigeon|Shop|Inventory/,file);
+    const selected=links.find(link=>link.attrs.includes('aria-current="page"'));
+    assert.equal(selected?.label,current||undefined,file);
     assert.match(html,/site-navigation\.css/,file);
+    assert.match(html,/site-navigation\.js/,file);
   }
 });
 
 test('authentication and game pages use the same nav with contextual account actions',()=>{
   const auth=renderAuthPage('sign-in',{configured:true});
-  assert.deepEqual(anchors(nav(auth)).map(({label})=>label),core.map(([, ,label])=>label));
+  assert.deepEqual(anchors(nav(auth)).map(({label})=>label),[...PUBLIC_LINKS.map(([, ,label])=>label),'Login']);
   const logout=renderAuthPage('logout',{configured:true,user:{id:'u',email:'a@b.test'}});
   assert.equal(anchors(nav(logout)).at(-1).label,'Sign out');
   const inventory={items:[],summary:{distinctOwned:0,totalQuantity:0}};
@@ -58,7 +69,16 @@ test('mobile navigation remains a single keyboard-accessible horizontal row',()=
   assert.match(css,/flex-wrap:nowrap/); assert.match(css,/overflow-x:auto/);
   assert.match(css,/scroll-snap-type:x proximity/); assert.match(css,/:focus-visible/);
   assert.match(read('server.js'),/"site-navigation\.css"/);
+  assert.match(read('server.js'),/"site-navigation\.js"/);
   assert.match(read('test-support/preview-adoption.js'),/"\/site-navigation\.css"/);
+});
+
+test('public navigation upgrades after a verified account session',()=>{
+  const script=read('public/site-navigation.js');
+  assert.match(script,/fetch\('\/api\/auth\/session'/);
+  assert.match(script,/credentials: 'same-origin'/);
+  assert.match(script,/Boolean\(session\?\.user\)/);
+  for(const label of ['My Pigeon','Shop','Inventory','Sign out','Login']) assert.match(script,new RegExp(label));
 });
 
 test('all navigation targets resolve to existing public files or owned application routes',()=>{

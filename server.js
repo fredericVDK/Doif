@@ -52,6 +52,7 @@ const rateLimitBuckets = new Map();
 const allowedRootFiles = new Set([
   "auth.css",
   "site-navigation.css",
+  "site-navigation.js",
   "auth.js",
   "analytics.js",
   "adoption.css",

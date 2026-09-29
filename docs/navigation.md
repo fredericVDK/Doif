@@ -1,7 +1,17 @@
 # Consistente navigatie — fase 17
 
-Alle publieke en accountgebonden pagina’s gebruiken nu dezelfde kernnavigatie,
-in dezelfde volgorde:
+Alle pagina’s gebruiken dezelfde gecentreerde knopnavigatie. Uitgelogde bezoekers
+zien alleen de publieke bestemmingen, in deze volgorde:
+
+1. Home
+2. PigeonDex
+3. Pigder
+4. Drawings
+5. API
+6. Login
+
+Na een geverifieerde accountsessie verschijnen de Tamagotchi-bestemmingen en
+wordt Login vervangen door Sign out. De volledige volgorde is dan:
 
 1. Home
 2. My Pigeon
@@ -13,22 +23,22 @@ in dezelfde volgorde:
 8. API
 
 De actieve pagina krijgt `aria-current="page"` en dezelfde visuele markering.
-Ingelogde account- en gamepagina’s voegen **Sign out** toe. De beheerpagina houdt
-een extra **Admin**-link; die technische bestemming staat niet in de primaire
-navigatie van gewone bezoekers.
+De technische beheerpagina staat niet in de primaire navigatie.
 
 ## Responsive gedrag
 
 `public/site-navigation.css` bepaalt de gedeelde knopstijl, hover-, focus- en
-actieve toestand. Op brede schermen mogen links ombreken wanneer dat nodig is.
+actieve toestand. Op brede schermen staan de knoppen gecentreerd bovenaan en
+mogen ze ombreken wanneer dat nodig is.
 Op schermen tot 760 pixels blijft de navigatie één horizontale, scrollbare rij.
 Zo neemt ze weinig verticale ruimte in en blijven alle bestemmingen bereikbaar
 met aanraking en toetsenbord.
 
-Publieke HTML-pagina’s bevatten de links rechtstreeks, zodat navigatie ook zonder
-JavaScript werkt. Dynamische auth-, adoption- en gamepagina’s gebruiken de
-centrale serverhelper `lib/navigation.js`. Nieuwe dynamische pagina’s kunnen
-daardoor niet ongemerkt een andere volgorde of oude benaming introduceren.
+Publieke HTML-pagina’s bevatten de publieke links en Login rechtstreeks, zodat
+navigatie ook zonder JavaScript werkt. `public/site-navigation.js` vraagt alleen
+de geverifieerde sessiestatus op en voegt de Tamagotchi-links toe wanneer er een
+gebruiker is. Dynamische auth-, adoption- en gamepagina’s gebruiken de centrale
+serverhelper `lib/navigation.js`.
 
 ## Activeren
 
@@ -54,7 +64,7 @@ het gedeelde stylesheet en het mobiele horizontale gedrag.
 
 ## Bestanden in deze fase
 
-- Nieuw: `lib/navigation.js`, `public/site-navigation.css`,
+- Nieuw: `lib/navigation.js`, `public/site-navigation.css`, `public/site-navigation.js`,
   `test/navigation.test.js` en dit document.
 - Gewijzigd: `public/index.html`, `public/pigeondex.html`, `public/pigder.html`,
   `public/drawings.html`, `public/api-docs.html`, `public/admin.html`,
