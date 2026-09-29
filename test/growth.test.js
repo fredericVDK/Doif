@@ -93,7 +93,7 @@ test("duplicate growth-boundary actions do not double rewards and progress survi
   const responses=await Promise.all([post(f,body),post(f,body)]);
   for (const response of responses) assert.equal(response.status,200);
   await f.request("/api/auth/sign-out",{body:{}});
-  await f.request("/api/auth/sign-in",{body:{email:"BirdFriend@example.test",password:"a good test password"}});
+  await f.request("/api/auth/sign-in",{body:{username:"BirdFriend",password:"a good test password"}});
   const state=(await (await f.request("/api/game/pigeon")).json()).pigeon;
   assert.equal(state.level,5); assert.equal(state.xp,0); assert.equal(state.growth_stage,"juvenile");
   const html=await (await f.request("/my-pigeon")).text();

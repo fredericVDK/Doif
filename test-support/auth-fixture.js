@@ -39,6 +39,20 @@ function fakeSupabase({ gameDb } = {}) {
     // Track route/keys only, never the supplied password or tokens in test output.
     calls.push({ path: url.pathname, grant: url.searchParams.get("grant_type"), method: request.method });
     if (url.pathname.startsWith("/auth/") && state.authDown) return response({ msg: "Unavailable" }, 503);
+    if(url.pathname==='/auth/v1/admin/users'&&request.method==='POST') {
+      assert.equal(request.headers.get('apikey'),'test-server-secret');
+      if(users.has(body.email))return response({msg:'User already registered',code:'email_exists'},422);
+      const user={id:`20000000-0000-4000-8000-${String(++sequence).padStart(12,'0')}`,
+        email:body.email,user_metadata:body.user_metadata||{},aud:'authenticated',role:'authenticated',
+        email_confirmed_at:body.email_confirm?new Date().toISOString():null,identities:[{provider:'email'}]};
+      users.set(body.email,{user,password:body.password});
+      return response(user,201);
+    }
+    if(url.pathname.startsWith('/auth/v1/admin/users/')&&request.method==='GET') {
+      assert.equal(request.headers.get('apikey'),'test-server-secret');
+      const id=url.pathname.split('/').pop(),record=[...users.values()].find(item=>item.user.id===id);
+      return record?response(record.user):response({msg:'User not found',code:'user_not_found'},404);
+    }
     if (url.pathname === "/auth/v1/signup") {
       if (users.has(body.email)) return response({ user: { id: "obfuscated", identities: [] }, session: null });
       const user = { id: `20000000-0000-4000-8000-${String(++sequence).padStart(12, "0")}`,
@@ -196,6 +210,13 @@ function fakeSupabase({ gameDb } = {}) {
       try{return response((await gameDb.query('SELECT public.treat_game_pigeon($1,$2) AS result',[body.p_user_id,body.p_request_id])).rows[0].result);}
       catch(error){return response({code:error.code,message:'Test clinic failure'},400);}
     }
+    if(url.pathname==='/rest/v1/rpc/find_game_user_by_username') {
+      assert.equal(request.headers.get('apikey'),'test-server-secret');
+      const username=body.p_username;
+      if(gameDb)return response((await gameDb.query('SELECT id,username FROM public.game_users WHERE lower(username)=lower($1) LIMIT 1',[username])).rows);
+      const found=[...profiles.values()].find(profile=>profile.username.toLowerCase()===username.toLowerCase());
+      return response(found?[{id:found.id,username:found.username}]:[]);
+    }
     if (["/rest/v1/game_species", "/rest/v1/game_pigeons", "/rest/v1/rpc/adopt_game_pigeon", "/rest/v1/rpc/refresh_game_pigeon", "/rest/v1/rpc/feed_game_pigeon", "/rest/v1/rpc/play_game_pigeon", "/rest/v1/rpc/clean_game_pigeon", "/rest/v1/rpc/sleep_game_pigeon"].includes(url.pathname)) {
       assert.equal(request.headers.get("apikey"), "test-server-secret");
       if (state.gameDown) return response({ code: "PGRST205", message: "Test schema unavailable" }, 503);
@@ -311,7 +332,7 @@ async function fixture(t, { configured = true, secure = false, gameDb, getCatalo
     return response;
   }
   async function signup(username = "BirdFriend", extra = {}) {
-    return request("/api/auth/sign-up", { body: { username, email: `${username}@example.test`, password: "a good test password", ...extra } });
+    return request("/api/auth/sign-up", { body: { username, password: "a good test password", ...extra } });
   }
   return { provider, env, request, signup, jar, errors, base };
 }

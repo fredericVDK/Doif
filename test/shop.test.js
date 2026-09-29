@@ -151,7 +151,7 @@ test('purchases persist through logout and storage failures remain retryable',as
   const f=await account(t,100),requestId=randomUUID();
   f.provider.state.gameDown=true; assert.equal((await buy(f,'peas',requestId)).status,503);
   f.provider.state.gameDown=false; assert.equal((await buy(f,'peas',requestId)).status,200);
-  await f.request('/api/auth/sign-out',{body:{}}); await f.request('/api/auth/sign-in',{body:{email:'BirdFriend@example.test',password:'a good test password'}});
+  await f.request('/api/auth/sign-out',{body:{}}); await f.request('/api/auth/sign-in',{body:{username:'BirdFriend',password:'a good test password'}});
   const inventory=await (await f.request('/api/game/inventory')).json();
   assert.equal(inventory.items.find(item=>item.id==='peas').quantity,1); assert.deepEqual(await wallet(f.user.id),{coins:65,coins_version:1});
 });

@@ -139,7 +139,7 @@ test("Clean, Feed, Play and refresh share one timeline and persist across login"
   const responses = await Promise.all([post(f,input()),f.request("/api/game/play",{body:input()}),f.request("/api/game/feed",{body:{food:"crumbs",requestId:randomUUID()}}),f.request("/api/game/pigeon")]);
   for (const response of responses) assert.equal(response.status,200);
   await f.request("/api/auth/sign-out",{body:{}});
-  await f.request("/api/auth/sign-in",{body:{email:"BirdFriend@example.test",password:"a good test password"}});
+  await f.request("/api/auth/sign-in",{body:{username:"BirdFriend",password:"a good test password"}});
   const result = (await (await f.request("/api/game/pigeon")).json()).pigeon;
   assert.equal(result.xp,20);
   for (const [key,value] of Object.entries({hunger:19,happiness:74,energy:42,cleanliness:66})) assert.ok(Math.abs(Number(result[key])-value)<0.01,key);

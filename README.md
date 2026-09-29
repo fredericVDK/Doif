@@ -132,7 +132,7 @@ npm test
 ## Tamagotchi development
 
 Phase 1 adds the game schema and starter species. Phase 2 adds account routes,
-registration, email confirmation, sign-in/sign-out and server-verified sessions.
+registration, sign-in/sign-out and server-verified sessions.
 Accounts require a configured Supabase project; without one the public website
 still works and the account forms clearly show they are unavailable. Existing
 JSON/Airtable storage remains unchanged. Phase 3 adds adoption: choose a Jacobin
@@ -256,6 +256,9 @@ close actions.
 Phase 34 frames Catch the Crumbs on the dashboard and game page, and expands the
 permanent progression track to 20 achievements. Apply
 `migrations/026_more_permanent_achievements.sql` once after migration 025.
+Phase 35 removes email from the player account flow. Registration and login use
+only a unique username and password while Supabase Auth remains server-verified.
+Apply `migrations/027_username_password_accounts.sql` once after migration 026.
 The player-facing catalogue is photo-only: 269 wild species and 137 domestic
 breeds currently qualify. Records that would use the generic replacement image
 are excluded from PigeonDex, daily discovery and catalogue API results.

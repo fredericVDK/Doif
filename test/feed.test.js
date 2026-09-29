@@ -164,7 +164,7 @@ test("feed and refresh requests share one timeline; progress survives logout/log
   const responses = await Promise.all([post(f,input()),f.request("/api/game/pigeon")]);
   for (const response of responses) assert.equal(response.status,200);
   await f.request("/api/auth/sign-out",{body:{}});
-  await f.request("/api/auth/sign-in",{body:{email:"BirdFriend@example.test",password:"a good test password"}});
+  await f.request("/api/auth/sign-in",{body:{username:"BirdFriend",password:"a good test password"}});
   const state = (await (await f.request("/api/game/pigeon")).json()).pigeon;
   assert.equal(state.xp,5);
   assert.ok(Math.abs(Number(state.hunger)-19)<0.01);

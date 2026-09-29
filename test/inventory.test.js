@@ -151,7 +151,7 @@ test('storage failures are friendly and quantities persist through a new session
   const failed=await f.request('/api/game/inventory'); assert.equal(failed.status,503); assert.equal((await failed.json()).code,'INVENTORY_STORAGE');
   f.provider.state.gameDown=false;
   await f.request('/api/auth/sign-out',{body:{}});
-  await f.request('/api/auth/sign-in',{body:{email:'BirdFriend@example.test',password:'a good test password'}});
+  await f.request('/api/auth/sign-in',{body:{username:'BirdFriend',password:'a good test password'}});
   const saved=await (await f.request('/api/game/inventory')).json();
   assert.equal(saved.items.find(item=>item.id==='peas').quantity,6);
 });

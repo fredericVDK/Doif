@@ -100,7 +100,7 @@ test("discovery acknowledgement survives login and cannot change another player'
   await f.request("/api/game/discoveries/seen",{body:{speciesId:dailyDiscoveryId(date)}});
   assert.equal((await dex(f)).pending.length,0);
   await f.request("/api/auth/sign-out",{body:{}});
-  await f.request("/api/auth/sign-in",{body:{email:"BirdFriend@example.test",password:"a good test password"}});
+  await f.request("/api/auth/sign-in",{body:{username:"BirdFriend",password:"a good test password"}});
   assert.equal((await dex(f)).pending.length,0);
   const counts=(await dex(f)).counts;
   assert.equal(counts.discoveredSpecies+counts.discoveredBreeds,2);

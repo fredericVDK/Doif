@@ -37,31 +37,25 @@ test("registration, verified session, logout and login preserve the profile", as
   assert.equal(f.jar.size, 0);
   assert.equal(f.provider.refresh.size, beforeLogout - 1);
   assert.equal((await (await f.request("/api/auth/session")).json()).user, null);
-  const login = await f.request("/api/auth/sign-in", { body: { email: "BirdFriend@example.test", password: "a good test password" } });
+  const login = await f.request("/api/auth/sign-in", { body: { username: "BirdFriend", password: "a good test password" } });
   assert.equal(login.status, 200);
   assert.equal((await login.json()).redirect, "/my-pigeon");
   assert.equal(f.provider.profiles.size, 1);
   assert.equal((await f.request("/my-pigeon")).headers.get("location"), "/adopt");
 });
 
-test("email confirmation uses PKCE and creates a profile only after confirmation", async t => {
+test("registration needs only a unique username and password with no confirmation step", async t => {
   const f = await fixture(t);
+  for(const path of ['/sign-up','/sign-in']){const html=await(await f.request(path)).text();assert.match(html,/name="username"/);assert.doesNotMatch(html,/name="email"|type="email"/);}
   f.provider.state.confirmation = true;
   const response = await f.signup();
-  assert.equal(response.status, 202);
-  assert.equal((await response.json()).confirmationRequired, true);
-  assert.equal(f.provider.profiles.size, 0);
-  assert.ok([...f.jar.keys()].some(name => name.includes("code-verifier")));
-  const code = [...f.provider.codes.keys()][0];
-  const flowId = f.provider.codes.get(code).flowId;
-  const badBrowser = await f.request(`/auth/callback?code=${code}`, { cookie: "", updateCookies: false });
-  assert.equal(badBrowser.headers.get("location"), "/sign-in?notice=confirmation-failed");
-  const callback = await f.request(`/auth/callback?code=${code}${flowId ? `&sb_flow_id=${encodeURIComponent(flowId)}` : ""}&next=https://evil.example`);
-  assert.equal(callback.headers.get("location"), "/adopt");
+  assert.equal(response.status, 200);
+  const payload=await response.json();
+  assert.equal(payload.redirect,"/adopt");
   assert.equal(f.provider.profiles.size, 1);
-  assert.equal((await (await f.request("/api/auth/session")).json()).user.username, "BirdFriend");
-  const reused = await f.request(`/auth/callback?code=${code}`);
-  assert.equal(reused.headers.get("location"), "/sign-in?notice=confirmation-failed");
+  assert.equal(f.provider.codes.size,0);
+  assert.equal(Object.hasOwn(payload.user,'email'),false);
+  assert.doesNotMatch(JSON.stringify(payload),/@accounts\.pigeoncrumbs/);
 });
 
 test("protected pages reject anonymous and forged sessions, regardless of nickname cookie", async t => {
@@ -81,7 +75,7 @@ test("cookie user data and request IDs cannot select another user's profile", as
   await f.signup("FirstBird");
   const firstSession = [...f.provider.access.values()][0];
   await f.signup("SecondBird");
-  const secondUser = f.provider.users.get("SecondBird@example.test").user;
+  const secondUser = [...f.provider.users.values()].find(record=>record.user.user_metadata.username==='SecondBird').user;
   const forged = `pigeon_account=base64-${Buffer.from(JSON.stringify({ ...firstSession, user: secondUser })).toString("base64url")}`;
   const result = await (await f.request(`/api/auth/session?userId=${secondUser.id}`, { cookie: forged })).json();
   assert.equal(result.user.username, "FirstBird");
@@ -101,22 +95,14 @@ test("expired access sessions refresh through the SDK and persist rotated cookie
   assert.equal((await (await f.request("/api/auth/session")).json()).user.username, "BirdFriend");
 });
 
-test("profile conflicts offer setup and recover without trusting client balances or IDs", async t => {
+test("usernames are unique regardless of letter case", async t => {
   const f = await fixture(t);
   await f.signup("BirdFriend");
-  const second = await f.signup("birdfriend", { email: "another@example.test" });
-  assert.equal((await second.json()).redirect, "/complete-profile");
-  assert.equal((await f.request("/my-pigeon")).headers.get("location"), "/complete-profile");
-  const conflict = await f.request("/api/auth/profile", { body: { username: "BirdFriend" } });
-  assert.equal(conflict.status, 409);
-  const fixed = await f.request("/api/auth/profile", { body: { username: "OtherBird", coins: 9000, id: "victim" } });
-  assert.equal(fixed.status, 200);
-  const result = await fixed.json();
-  assert.equal(result.user.coins, 0);
-  assert.equal(result.user.username, "OtherBird");
-  assert.equal(result.redirect, "/adopt");
-  await f.request("/api/auth/profile", { body: { username: "ReplaceName" } });
-  assert.equal(f.provider.profiles.get(result.user.id).username, "OtherBird");
+  await f.request('/api/auth/sign-out',{body:{}});
+  const second = await f.signup("birdfriend");
+  assert.equal(second.status,409);
+  assert.equal((await second.json()).code,'USERNAME_TAKEN');
+  assert.equal(f.provider.profiles.size,1);
 });
 
 test("logout remains available during a profile outage and clears an already revoked refresh session", async t => {
@@ -153,11 +139,11 @@ test("cross-origin login/logout, missing origins and unsupported methods are rej
 
 test("input validation and login errors never expose credentials or provider details", async t => {
   const f = await fixture(t);
-  for (const change of [{ username: "<script>" }, { email: "invalid" }, { password: "short" }, { password: "a".repeat(129) }]) {
+  for (const change of [{ username: "<script>" }, { username: "ab" }, { password: "short" }, { password: "a".repeat(129) }]) {
     assert.equal((await f.signup("BirdFriend", change)).status, 400);
   }
   assert.equal(f.provider.calls.length, 0);
-  assert.equal((await f.request("/api/auth/sign-in", { body: { email: "unknown@example.test", password: "wrong" } })).status, 401);
+  assert.equal((await f.request("/api/auth/sign-in", { body: { username: "UnknownBird", password: "wrong" } })).status, 401);
   const large = await f.signup("BirdFriend", { padding: "x".repeat(9000) });
   assert.equal(large.status, 413);
   assert.equal((await f.request("/api/auth/sign-up", { body: {}, headers: { "content-type": "text/plain" } })).status, 415);
@@ -171,9 +157,9 @@ test("storage errors fail closed and a retry recovers the partially created acco
   assert.equal(failed.status, 503);
   assert.equal((await failed.json()).code, "PROFILE_STORAGE");
   assert.equal(f.provider.profiles.size, 0);
-  assert.doesNotMatch(JSON.stringify(f.errors), /password|refresh-|test-server-secret|BirdFriend@example/);
+  assert.doesNotMatch(JSON.stringify(f.errors), /password|refresh-|test-server-secret|accounts\.pigeoncrumbs/);
   f.provider.state.storageDown = false;
-  const retry = await f.request("/api/auth/sign-in", { body: { email: "BirdFriend@example.test", password: "a good test password" } });
+  const retry = await f.request("/api/auth/sign-in", { body: { username: "BirdFriend", password: "a good test password" } });
   assert.equal(retry.status, 200);
   assert.equal(f.provider.profiles.size, 1);
 });
@@ -200,11 +186,12 @@ test("authentication attempts are limited independently from anonymous session c
   const f = await fixture(t);
   let response;
   for (let i = 0; i < 21; i++) response = await f.request("/api/auth/sign-in", {
-    body: { email: "unknown@example.test", password: "incorrect" }, cookie: `pigeon_session=different-${i}`
+    body: { username: "UnknownBird", password: "incorrect" }, cookie: `pigeon_session=different-${i}`
   });
   assert.equal(response.status, 429);
   assert.ok(Number(response.headers.get("retry-after")) > 0);
-  assert.equal(f.provider.calls.length, 20);
+  assert.equal(f.provider.calls.filter(call=>call.path==='/auth/v1/token').length,20);
+  assert.equal(f.provider.calls.filter(call=>call.path==='/rest/v1/rpc/find_game_user_by_username').length,20);
 });
 
 test("unsafe configured origins and Supabase URLs are rejected", () => {

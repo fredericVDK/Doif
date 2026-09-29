@@ -159,7 +159,7 @@ test('daily reward writes and amount helpers remain server-only',async t=>{
 test('claimed reward persists through logout and sign-in',async t=>{
   const f=await account(t);
   await claim(f); await f.request('/api/auth/sign-out',{body:{}});
-  await f.request('/api/auth/sign-in',{body:{email:'BirdFriend@example.test',password:'a good test password'}});
+  await f.request('/api/auth/sign-in',{body:{username:'BirdFriend',password:'a good test password'}});
   assert.equal((await (await claim(f)).json()).claimed,false);
   assert.deepEqual(await wallet(f.user.id),{coins:50,coins_version:1});
   assert.match(await (await f.request('/my-pigeon')).text(),/id="coinsValue" aria-label="Pigeon Coins">50<\/dd>/);

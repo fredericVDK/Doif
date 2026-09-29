@@ -103,7 +103,7 @@ test("concurrent different actions cross the level boundary exactly once and sur
   const results=await Promise.all([post(f,input()),f.request("/api/game/play",{body:input()}),f.request("/api/game/clean",{body:input()})]);
   for (const response of results) assert.equal(response.status,200);
   await f.request("/api/auth/sign-out",{body:{}});
-  await f.request("/api/auth/sign-in",{body:{email:"BirdFriend@example.test",password:"a good test password"}});
+  await f.request("/api/auth/sign-in",{body:{username:"BirdFriend",password:"a good test password"}});
   const state=(await (await f.request("/api/game/pigeon")).json()).pigeon;
   assert.equal(state.level,2); assert.equal(state.xp,15);
   const page=await (await f.request("/my-pigeon")).text();

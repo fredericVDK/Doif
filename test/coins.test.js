@@ -129,7 +129,7 @@ test("coin balance survives logout/login and remains isolated to each account", 
   const f=await setup(t);
   await post(f,"play");
   await f.request("/api/auth/sign-out",{body:{}});
-  const signedIn=await (await f.request("/api/auth/sign-in",{body:{email:"BirdFriend@example.test",password:"a good test password"}})).json();
+  const signedIn=await (await f.request("/api/auth/sign-in",{body:{username:"BirdFriend",password:"a good test password"}})).json();
   assert.equal(signedIn.user.coins,5);
   assert.match(await (await f.request("/my-pigeon")).text(),/id="coinsValue" aria-label="Pigeon Coins">5<\/dd>/);
   const other=(await (await f.signup("OtherBird")).json()).user;

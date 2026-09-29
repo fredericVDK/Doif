@@ -85,7 +85,7 @@ test("adoption uses verified identity and database defaults, persists through lo
   assert.equal((await f.request("/adopt")).headers.get("location"), "/my-pigeon");
   assert.match(await (await f.request("/my-pigeon")).text(), /Gilbert 🕊/);
   await f.request("/api/auth/sign-out", { body: {} });
-  await f.request("/api/auth/sign-in", { body: { email: "BirdFriend@example.test", password: "a good test password" } });
+  await f.request("/api/auth/sign-in", { body: { username: "BirdFriend", password: "a good test password" } });
   const saved = await (await f.request("/api/game/pigeon")).json();
   assert.equal(saved.pigeon.id, pigeon.id);
   assert.equal(saved.pigeon.species.name, "Jacobin pigeon");
