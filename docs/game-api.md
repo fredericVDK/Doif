@@ -18,6 +18,8 @@ publieke `/api/docs`-pagina, zodat documentatie en uitvoering niet uiteenlopen.
 | POST | `/api/game/sleep` | Rusten |
 | GET | `/api/game/inventory` | Eigen itemaantallen |
 | POST | `/api/game/shop/buy` | Item kopen tegen databaseprijs |
+| GET | `/api/game/packs` | Prijzen en beschikbaarheid van duivenpacks |
+| POST | `/api/game/packs/buy` | Dagelijks of wekelijks duivenpack openen |
 | GET | `/api/game/pigeondex` | Persoonlijke ontdekkingen en voortgang |
 | POST | `/api/game/daily-reward` | Dagelijkse beloning claimen |
 

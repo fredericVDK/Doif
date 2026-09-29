@@ -171,6 +171,23 @@ function fakeSupabase({ gameDb } = {}) {
       try{return response((await gameDb.query('SELECT public.battle_game_pigeon($1,$2) AS result',[body.p_user_id,body.p_request_id])).rows[0].result);}
       catch(error){return response({code:error.code,message:'Test battle failure'},400);}
     }
+    if(url.pathname==='/rest/v1/rpc/get_pigeon_pack_status') {
+      assert.equal(request.headers.get('apikey'),'test-server-secret');
+      assert.deepEqual(Object.keys(body),['p_user_id']);
+      assert.ok(gameDb,'Pigeon pack tests use actual SQL');
+      if(state.gameDown)return response({code:'PGRST205'},503);
+      try{return response((await gameDb.query('SELECT public.get_pigeon_pack_status($1) AS result',[body.p_user_id])).rows[0].result);}
+      catch(error){return response({code:error.code,message:'Test pack status failure'},400);}
+    }
+    if(url.pathname==='/rest/v1/rpc/buy_pigeon_pack') {
+      assert.equal(request.headers.get('apikey'),'test-server-secret');
+      assert.deepEqual(Object.keys(body).sort(),['p_pack_type','p_request_id','p_species_ids','p_user_id']);
+      assert.ok(gameDb,'Pigeon pack tests use actual SQL');
+      if(state.gameDown)return response({code:'PGRST205'},503);
+      try{return response((await gameDb.query('SELECT public.buy_pigeon_pack($1,$2,$3,$4::text[]) AS result',
+        [body.p_user_id,body.p_request_id,body.p_pack_type,body.p_species_ids])).rows[0].result);}
+      catch(error){return response({code:error.code,message:'Test pigeon pack failure'},400);}
+    }
     if (["/rest/v1/game_species", "/rest/v1/game_pigeons", "/rest/v1/rpc/adopt_game_pigeon", "/rest/v1/rpc/refresh_game_pigeon", "/rest/v1/rpc/feed_game_pigeon", "/rest/v1/rpc/play_game_pigeon", "/rest/v1/rpc/clean_game_pigeon", "/rest/v1/rpc/sleep_game_pigeon"].includes(url.pathname)) {
       assert.equal(request.headers.get("apikey"), "test-server-secret");
       if (state.gameDown) return response({ code: "PGRST205", message: "Test schema unavailable" }, 503);

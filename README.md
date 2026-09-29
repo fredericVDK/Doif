@@ -235,6 +235,13 @@ Projects that already ran the first opponent-selection version of migration 019
 must run `migrations/020_automatic_battles.sql` instead of rerunning 019.
 Apply `migrations/021_battle_health.sql` afterward to enable the loss penalty, then
 `migrations/022_level_scaled_battle_damage.sql` to scale damage with level.
+
+Pigeon Packs add a 300-coin daily Normal Pack with two random photo-verified
+pigeons and a 900-coin weekly Big Pack with five. A previously discovered pigeon
+returns 50 coins. Purchases, UTC limits, random catalogue selection, discovery
+writes and refunds are server-owned and idempotent. Apply
+`migrations/023_pigeon_packs.sql` once after migration 022; see
+[the Pigeon Packs guide](docs/pigeon-packs.md).
 The player-facing catalogue is photo-only: 269 wild species and 137 domestic
 breeds currently qualify. Records that would use the generic replacement image
 are excluded from PigeonDex, daily discovery and catalogue API results.
