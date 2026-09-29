@@ -219,11 +219,16 @@ Phase 26 adds the complete [testing matrix](docs/testing.md), including an
 end-to-end MVP test that returns after 48 hours, performs every care action,
 levels up, changes growth stage, claims a daily reward, purchases an item and
 verifies inventory and account isolation. It needs no migration.
-Phase 27 connects owned Corn, Peas and Sunflower Seeds to the Feed menu. Each
+The inventory-feeding update connects owned Corn, Peas and Sunflower Seeds to the Feed menu. Each
 meal uses the effects stored in the item catalogue and atomically removes one
 item; safe retries never consume a second item. Apply
 `migrations/018_inventory_feeding.sql` once after 017. Free Crumbs remain
 available and do not consume inventory. See the [feeding guide](docs/feed.md).
+Phase 27 provides the requested starter and item seed data; the main catalogue
+supplies additional real pigeon species. Phase 28 is covered by the end-to-end
+MVP and regression suite. New phase 29 adds server-authoritative
+[Pigeon Battles](docs/pigeon-battles.md): battles cost 10 Energy and award 18 XP
+for a win or 8 XP for a loss. Apply `migrations/019_pigeon_battles.sql` after 018.
 
 See [the model, migration instructions and phase boundaries](docs/tamagotchi-model.md).
 Run `npm run test:game` to execute the schema tests locally with PGlite; no hosted
@@ -242,7 +247,7 @@ This produces SQL only; it does not apply it to any database.
 The current three starter breeds are included in `migrations/002_adoption.sql`.
 `npm run seed:adoption` refreshes its generated breed section from the domestic
 catalogue and reviewed photo credits. Apply migrations in order: 001, the original
-species seed, then 002 through 018 in order. Do not rerun migrations after they have succeeded.
+species seed, then 002 through 019 in order. Do not rerun migrations after they have succeeded.
 `npm run test:adoption` covers the actual SQL adoption function through HTTP tests
 with simulated Supabase Auth and a local PGlite database.
 

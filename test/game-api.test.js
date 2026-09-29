@@ -6,7 +6,7 @@ const {randomUUID}=require('node:crypto');
 const {GAME_API_DOCS,GAME_API_METHODS,dispatchGameApi}=require('../lib/game/api');
 
 test('game API registry is the single complete method and documentation contract',()=>{
-  assert.equal(GAME_API_DOCS.length,21);
+  assert.equal(GAME_API_DOCS.length,22);
   assert.equal(new Set(GAME_API_DOCS.map(item=>item.path)).size,GAME_API_DOCS.length);
   for(const item of GAME_API_DOCS) {
     assert.equal(GAME_API_METHODS.get(item.path),item.method);
@@ -17,7 +17,7 @@ test('game API registry is the single complete method and documentation contract
     ['GET','/api/game/pigeon'],['POST','/api/game/adopt'],['POST','/api/game/feed'],
     ['POST','/api/game/play'],['POST','/api/game/clean'],['POST','/api/game/sleep'],
     ['GET','/api/game/inventory'],['POST','/api/game/shop/buy'],
-    ['GET','/api/game/pigeondex'],['POST','/api/game/daily-reward']
+    ['GET','/api/game/pigeondex'],['POST','/api/game/daily-reward'],['POST','/api/game/battle']
   ];
   for(const [method,route] of required) assert.equal(GAME_API_METHODS.get(route),method,route);
 });

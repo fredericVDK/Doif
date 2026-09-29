@@ -1,0 +1,17 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const {randomUUID}=require('node:crypto');
+const {before,after,beforeEach,test}=require('node:test');
+const {PGlite}=require('@electric-sql/pglite');
+const {fixture}=require('../test-support/auth-fixture');
+const read=file=>fs.readFileSync(path.join(__dirname,'..',file),'utf8');
+let db;
+before(async()=>{db=new PGlite();await db.exec(`CREATE SCHEMA auth;CREATE TABLE auth.users(id uuid PRIMARY KEY);CREATE ROLE anon NOLOGIN;CREATE ROLE authenticated NOLOGIN;CREATE ROLE service_role NOLOGIN BYPASSRLS;CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT NULL::uuid $$;GRANT USAGE ON SCHEMA public,auth TO anon,authenticated,service_role;`);for(const file of ['001_tamagotchi.sql','../seeds/tamagotchi-starters.sql','002_adoption.sql','003_time_engine.sql','004_feed.sql','005_play.sql','006_clean.sql','007_sleep.sql','008_xp_levels.sql','009_growth_stages.sql','010_coins.sql','011_discoveries.sql','012_daily_reward.sql','013_inventory.sql','014_shop.sql','015_daily_quests.sql','016_achievements.sql','017_catch_the_crumbs.sql','018_inventory_feeding.sql','019_pigeon_battles.sql'])await db.exec(read(file.startsWith('../')?file.slice(3):`migrations/${file}`));});
+after(async()=>db?.close());beforeEach(async()=>db.exec('TRUNCATE public.game_pigeons,public.game_users,auth.users CASCADE'));
+async function account(t){const f=await fixture(t,{gameDb:db}),user=(await(await f.signup()).json()).user;await f.request('/api/game/adopt',{body:{speciesId:'jacobin pigeon',nickname:'Gilbert'}});return {...f,user};}
+const fight=(f,opponentSpeciesId='indian fantail',requestId=randomUUID())=>f.request('/api/game/battle',{body:{opponentSpeciesId,requestId}});
+
+test('battle spends energy and awards server-owned XP once',async t=>{const f=await account(t),id=randomUUID();const first=await fight(f,'indian fantail',id);assert.equal(first.status,200);const result=await first.json();assert.ok([8,18].includes(result.effects.xp));assert.equal(result.effects.energy,-10);assert.ok(Number(result.pigeon.energy)<=90);const replay=await(await fight(f,'indian fantail',id)).json();assert.equal(replay.replayed,true);assert.equal((await db.query('SELECT count(*) FROM public.game_battle_receipts')).rows[0].count,1);assert.equal((await db.query('SELECT xp FROM public.game_pigeons')).rows[0].xp,result.effects.xp);});
+test('cooldown, invalid opponents and tired pigeons grant nothing',async t=>{const f=await account(t);assert.equal((await fight(f,'jacobin pigeon')).status,409);await db.exec('UPDATE public.game_pigeons SET energy=9');let response=await fight(f);assert.equal(response.status,409);assert.equal((await response.json()).code,'BATTLE_TIRED');await db.exec('UPDATE public.game_pigeons SET energy=100,last_battled_at=NULL');assert.equal((await fight(f)).status,200);response=await fight(f);assert.equal(response.status,429);assert.equal((await db.query('SELECT count(*) FROM public.game_battle_receipts')).rows[0].count,1);});
+test('battle page is protected and exposes only approved opponents',async t=>{const anon=await fixture(t,{gameDb:db});assert.equal((await anon.request('/battle')).headers.get('location'),'/sign-in');const f=await account(t),html=await(await f.request('/battle')).text();assert.match(html,/Pigeon Battle/);assert.match(html,/indian fantail/);assert.match(html,/australian saddleback tumbler/);assert.doesNotMatch(html,/value="jacobin pigeon"/);assert.match(html,/pigeon-battle\.js/);});

@@ -9,7 +9,7 @@ const {requestIdInput,isUuid,storageError,cooldownError}=require('../lib/game/se
 const {presentPigeonResult}=require('../lib/game/presentation');
 
 const methods=[
-  'acknowledgeDiscovery','adopt','buyItem','claimAchievement','claimDailyQuest','claimDailyReward','clean',
+  'acknowledgeDiscovery','adopt','battle','buyItem','claimAchievement','claimDailyQuest','claimDailyReward','clean',
   'discoverDaily','discoveries','feed','finishCrumbGame','getAchievements','getCurrentPigeon','getDailyQuests',
   'getInventory','getPigeon','getStarters','play','sleep','startCrumbGame','visitPigeonDex'
 ];
@@ -19,7 +19,7 @@ test('one game facade composes every domain service without changing the legacy 
   assert.deepEqual(current,methods);
   assert.deepEqual(Object.keys(createGameRepository({})).sort(),methods);
   assert.deepEqual(Object.keys(legacyFactory({})).sort(),methods);
-  assert.equal(SERVICE_FACTORIES.length,13);
+  assert.equal(SERVICE_FACTORIES.length,14);
 });
 
 test('shared request and service helpers preserve validation and transport metadata',()=>{
@@ -47,7 +47,7 @@ test('HTTP presentation is assembled once from an authoritative pigeon result',(
 });
 
 test('game rules stay in database services while browser scripts send intent only',()=>{
-  for(const [script,endpoint] of [['pigeon-feed.js','feed'],['pigeon-play.js','play'],['pigeon-clean.js','clean'],['pigeon-sleep.js','sleep']]) {
+  for(const [script,endpoint] of [['pigeon-feed.js','feed'],['pigeon-play.js','play'],['pigeon-clean.js','clean'],['pigeon-sleep.js','sleep'],['pigeon-battle.js','battle']]) {
     const source=fs.readFileSync(path.join(__dirname,'../public',script),'utf8');
     assert.match(source,new RegExp(`/api/game/${endpoint}`));
     assert.doesNotMatch(source,/body:\s*JSON\.stringify\([^)]*(coins|xp|hunger|happiness|energy|cleanliness)/s);
