@@ -48,6 +48,8 @@ test('FredAdmin is promoted and sent to the protected account dashboard',async t
   assert.match(html,/FredAdmin/);
   assert.match(html,/FlockMember/);
   assert.match(html,/account-admin\.js/);
+  assert.match(html,/data-delete-account/);
+  assert.match(html,/active administrator account is protected/);
   assert.doesNotMatch(html,new RegExp(player.id));
   assert.doesNotMatch(html,/@accounts\.pigeoncrumbs\.invalid/);
 });
@@ -60,6 +62,28 @@ test('ordinary and signed-out users cannot view or call account administration',
   assert.equal((await app.request('/admin.html')).headers.get('location'),'/my-pigeon');
   assert.equal((await app.request('/api/admin/accounts')).status,403);
   assert.equal((await app.request('/api/admin/coins',{body:{username:'RegularBird',amount:100}})).status,403);
+  assert.equal((await app.request('/api/admin/account',{method:'DELETE',body:{username:'RegularBird',confirmation:'RegularBird'}})).status,403);
+});
+
+test('admin can permanently delete another account after exact confirmation',async t=>{
+  const app=await fixture(t,{gameDb:db});
+  const admin=await createPlayer(app,'FredAdmin');
+  await app.request('/api/auth/sign-out',{body:{}});
+  const target=await createPlayer(app,'DeleteBird');
+  await app.request('/api/auth/sign-out',{body:{}});
+  await app.request('/api/auth/sign-in',{body:{username:'FredAdmin',password:'a good test password'}});
+
+  assert.equal((await app.request('/api/admin/account',{method:'DELETE',body:{username:'DeleteBird',confirmation:'deletebird'}})).status,400);
+  assert.equal((await app.request('/api/admin/account',{method:'DELETE',body:{username:'FredAdmin',confirmation:'FredAdmin'}})).status,400);
+  assert.equal((await app.request('/api/admin/account',{method:'DELETE',body:{username:'DeleteBird',confirmation:'DeleteBird'},origin:'https://evil.example'})).status,403);
+
+  const removed=await app.request('/api/admin/account',{method:'DELETE',body:{username:'DeleteBird',confirmation:'DeleteBird'}});
+  assert.equal(removed.status,200);
+  assert.deepEqual(await removed.json(),{deleted:true,username:'DeleteBird'});
+  assert.equal((await db.query('SELECT count(*)::integer AS count FROM auth.users WHERE id=$1',[target.id])).rows[0].count,0);
+  assert.equal((await db.query('SELECT count(*)::integer AS count FROM public.game_users WHERE id=$1',[target.id])).rows[0].count,0);
+  assert.equal((await db.query('SELECT count(*)::integer AS count FROM public.game_admins WHERE user_id=$1',[admin.id])).rows[0].count,1);
+  assert.equal((await app.request('/api/admin/account',{method:'DELETE',body:{username:'DeleteBird',confirmation:'DeleteBird'}})).status,404);
 });
 
 test('admin can grant validated coins by username and every grant is audited',async t=>{

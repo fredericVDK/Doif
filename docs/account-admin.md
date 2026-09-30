@@ -37,3 +37,16 @@ verify the current session and administrator membership:
 
 All admin responses are private and uncached. Coin requests also require the
 same application origin and use the existing mutation rate limit.
+
+## Account deletion
+
+Every non-admin account card includes a **Delete account** action. The
+administrator must type the account's exact username before the destructive
+button becomes available. The server verifies the admin session and confirmation
+again, then permanently removes the Supabase Auth identity. Database cascades
+remove its profile, pigeon, inventory, discoveries, receipts and progression.
+The active administrator account cannot delete itself.
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `DELETE` | `/api/admin/account` | Delete one account using `{ username, confirmation }` |

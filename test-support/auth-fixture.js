@@ -54,6 +54,16 @@ function fakeSupabase({ gameDb } = {}) {
       const id=url.pathname.split('/').pop(),record=[...users.values()].find(item=>item.user.id===id);
       return record?response(record.user):response({msg:'User not found',code:'user_not_found'},404);
     }
+    if(url.pathname.startsWith('/auth/v1/admin/users/')&&request.method==='DELETE') {
+      assert.equal(request.headers.get('apikey'),'test-server-secret');
+      const id=url.pathname.split('/').pop(),entry=[...users.entries()].find(([,item])=>item.user.id===id);
+      if(!entry)return response({msg:'User not found',code:'user_not_found'},404);
+      users.delete(entry[0]);profiles.delete(id);
+      for(const [key,session] of access)if(session.user.id===id)access.delete(key);
+      for(const [key,session] of refresh)if(session.user.id===id)refresh.delete(key);
+      if(gameDb)await gameDb.query('DELETE FROM auth.users WHERE id=$1',[id]);
+      return response(entry[1].user);
+    }
     if (url.pathname === "/auth/v1/signup") {
       if (users.has(body.email)) return response({ user: { id: "obfuscated", identities: [] }, session: null });
       const user = { id: `20000000-0000-4000-8000-${String(++sequence).padStart(12, "0")}`,

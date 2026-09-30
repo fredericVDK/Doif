@@ -261,7 +261,8 @@ only a unique username and password while Supabase Auth remains server-verified.
 Apply `migrations/027_username_password_accounts.sql` once after migration 026.
 Phase 36 adds the protected [Account Admin](docs/account-admin.md) dashboard. It
 shows privacy-limited account progress and permits audited coin grants of 1 to
-100,000 coins. Apply `migrations/028_account_admin.sql` once after migration 027;
+100,000 coins. It can also permanently remove a non-admin account after its exact
+username is typed as confirmation. Apply `migrations/028_account_admin.sql` once after migration 027;
 the unique `FredAdmin` account is then redirected to `/admin.html` after login.
 The player-facing catalogue is photo-only: 269 wild species and 137 domestic
 breeds currently qualify. Records that would use the generic replacement image
