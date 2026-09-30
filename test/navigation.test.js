@@ -35,7 +35,7 @@ test('central navigation defines the requested destinations in one stable order'
 test('public pages start with public links and login without exposing Tamagotchi links',()=>{
   const pages=[
     ['public/index.html','Home'],['public/pigeondex.html','PigeonDex'],['public/pigder.html','Pigder'],
-    ['public/drawings.html','Drawings'],['public/api-docs.html','API'],['public/admin.html',null]
+    ['public/drawings.html','Drawings'],['public/api-docs.html','API'],['public/leaderboard-admin.html',null]
   ];
   for(const [file,current] of pages) {
     const html=read(file),links=anchors(nav(html));

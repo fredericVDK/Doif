@@ -67,7 +67,7 @@ het gedeelde stylesheet en het mobiele horizontale gedrag.
 - Nieuw: `lib/navigation.js`, `public/site-navigation.css`, `public/site-navigation.js`,
   `test/navigation.test.js` en dit document.
 - Gewijzigd: `public/index.html`, `public/pigeondex.html`, `public/pigder.html`,
-  `public/drawings.html`, `public/api-docs.html`, `public/admin.html`,
+  `public/drawings.html`, `public/api-docs.html`, `public/leaderboard-admin.html`,
   `lib/auth/pages.js`, `lib/game/pages.js`, `server.js`,
   `test-support/preview-adoption.js`, `package.json`, `README.md` en relevante
   fasehandleidingen.

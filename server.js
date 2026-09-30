@@ -85,7 +85,7 @@ const allowedRootFiles = new Set([
   "index.html",
   "styles.css",
   "script.js",
-  "admin.html",
+  "leaderboard-admin.html",
   "admin.css",
   "admin.js",
   "account-admin.css",

@@ -26,7 +26,7 @@ Made with Codex.
 - `public/pigeondex.html` - search, compare, detail pages, daily pigeon, battle arena.
 - `public/pigder.html` - swipe through image-backed pigeon breeds.
 - `public/drawings.html` - submit and browse AI-checked pigeon drawings.
-- `public/admin.html` - protected admin dashboard for moderation and event inspection.
+- `public/leaderboard-admin.html` - token-protected legacy leaderboard moderation dashboard.
 - `public/api-docs.html` - recruiter-friendly API documentation.
 
 ## API Overview
