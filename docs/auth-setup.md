@@ -35,7 +35,7 @@ Phase 3 adds adoption; see [the adoption upgrade instructions](adoption-setup.md
 5. In Supabase Auth, keep email/password authentication enabled. The server uses
    a private generated Auth identifier and creates it as already confirmed, so no
    confirmation email, callback URL or SMTP configuration is needed. Players never
-   see that internal identifier. Configure a minimum password length of 12 in Auth
+   see that internal identifier. Configure a minimum password length of 8 in Auth
    settings to match the registration form.
 6. After migration 026, apply `migrations/027_username_password_accounts.sql`.
    It adds the server-only, case-insensitive username lookup used to support both

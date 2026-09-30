@@ -58,6 +58,12 @@ test("registration needs only a unique username and password with no confirmatio
   assert.doesNotMatch(JSON.stringify(payload),/@accounts\.pigeoncrumbs/);
 });
 
+test("registration accepts an eleven-character password",async t=>{
+  const f=await fixture(t);
+  const response=await f.request('/api/auth/sign-up',{body:{username:'AdminLength',password:'elevenchars'}});
+  assert.equal(response.status,200);
+});
+
 test("protected pages reject anonymous and forged sessions, regardless of nickname cookie", async t => {
   const f = await fixture(t);
   for (const path of ["/adopt", "/my-pigeon", "/complete-profile"]) {

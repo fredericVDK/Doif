@@ -11,6 +11,7 @@ function fakeSupabase({ gameDb } = {}) {
   const access = new Map();
   const refresh = new Map();
   const profiles = new Map();
+  const admins = new Set();
   const codes = new Map();
   const calls = [];
   let sequence = 0;
@@ -217,6 +218,25 @@ function fakeSupabase({ gameDb } = {}) {
       const found=[...profiles.values()].find(profile=>profile.username.toLowerCase()===username.toLowerCase());
       return response(found?[{id:found.id,username:found.username}]:[]);
     }
+    if(url.pathname==='/rest/v1/rpc/claim_initial_game_admin') {
+      assert.equal(request.headers.get('apikey'),'test-server-secret');
+      if(gameDb){try{return response((await gameDb.query('SELECT public.claim_initial_game_admin($1) AS result',[body.p_user_id])).rows[0].result);}catch(error){if(error.code==='42883')return response(false);throw error;}}
+      if(admins.has(body.p_user_id))return response(true);
+      if(admins.size)return response(false);
+      const profile=profiles.get(body.p_user_id);if(profile?.username.toLowerCase()==='fredadmin'){admins.add(body.p_user_id);return response(true);}return response(false);
+    }
+    if(url.pathname==='/rest/v1/rpc/get_game_admin_accounts') {
+      assert.equal(request.headers.get('apikey'),'test-server-secret');
+      assert.ok(gameDb,'Admin account tests use actual SQL');
+      try{return response((await gameDb.query('SELECT public.get_game_admin_accounts($1) AS result',[body.p_admin_user_id])).rows[0].result);}
+      catch(error){return response({code:error.code,message:'Test admin failure'},400);}
+    }
+    if(url.pathname==='/rest/v1/rpc/grant_game_admin_coins') {
+      assert.equal(request.headers.get('apikey'),'test-server-secret');
+      assert.ok(gameDb,'Admin coin tests use actual SQL');
+      try{return response((await gameDb.query('SELECT public.grant_game_admin_coins($1,$2,$3) AS result',[body.p_admin_user_id,body.p_target_username,body.p_amount])).rows[0].result);}
+      catch(error){return response({code:error.code,message:'Test admin grant failure'},400);}
+    }
     if (["/rest/v1/game_species", "/rest/v1/game_pigeons", "/rest/v1/rpc/adopt_game_pigeon", "/rest/v1/rpc/refresh_game_pigeon", "/rest/v1/rpc/feed_game_pigeon", "/rest/v1/rpc/play_game_pigeon", "/rest/v1/rpc/clean_game_pigeon", "/rest/v1/rpc/sleep_game_pigeon"].includes(url.pathname)) {
       assert.equal(request.headers.get("apikey"), "test-server-secret");
       if (state.gameDown) return response({ code: "PGRST205", message: "Test schema unavailable" }, 503);
@@ -298,7 +318,7 @@ function fakeSupabase({ gameDb } = {}) {
     }
     throw new Error(`Unexpected upstream route: ${request.method} ${url.pathname}`);
   }
-  return { fetch: upstream, users, profiles, access, refresh, codes, calls, state, mint };
+  return { fetch: upstream, users, profiles, admins, access, refresh, codes, calls, state, mint };
 }
 
 async function fixture(t, { configured = true, secure = false, gameDb, getCatalog, now } = {}) {
