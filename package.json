@@ -8,7 +8,7 @@
     "start": "node server.js",
     "dev": "node server.js",
     "test": "node --test",
-    "test:game": "node --test test/game-model.test.js test/adoption.test.js test/time-engine.test.js test/feed.test.js test/play.test.js test/clean.test.js test/sleep.test.js test/xp.test.js test/growth.test.js test/care-view.test.js test/coins.test.js test/discoveries.test.js test/daily-reward.test.js test/inventory.test.js test/shop.test.js test/navigation.test.js test/daily-quests.test.js test/achievements.test.js test/crumb-game.test.js test/battle.test.js test/ui-ux.test.js test/game-architecture.test.js test/game-api.test.js test/error-handling.test.js test/mvp-flow.test.js",
+    "test:game": "node --test test/game-model.test.js test/adoption.test.js test/time-engine.test.js test/feed.test.js test/play.test.js test/clean.test.js test/sleep.test.js test/xp.test.js test/growth.test.js test/care-view.test.js test/coins.test.js test/discoveries.test.js test/daily-reward.test.js test/inventory.test.js test/shop.test.js test/navigation.test.js test/daily-quests.test.js test/achievements.test.js test/crumb-game.test.js test/battle.test.js test/ui-ux.test.js test/game-architecture.test.js test/game-api.test.js test/error-handling.test.js test/mvp-flow.test.js test/progression-social.test.js",
     "test:api": "node --test test/game-api.test.js test/server.test.js",
     "test:architecture": "node --test test/game-architecture.test.js test/error-handling.test.js test/security.test.js",
     "test:security": "node --test test/security.test.js",

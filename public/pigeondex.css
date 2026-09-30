@@ -1114,3 +1114,4 @@ h1 {
     aspect-ratio: 16 / 10;
   }
 }
+.rarity-badge{display:inline-flex;align-items:center;padding:5px 8px;border:1px solid #b5b7ad;border-radius:999px;background:#efeee8;color:#555;font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}.rarity-common{background:#e7efe2;color:#39543a}.rarity-uncommon{background:#deecec;color:#26585c}.rarity-rare{background:#e5e8f5;color:#354778}.rarity-epic{background:#eee1f2;color:#674078}.rarity-legendary{background:#fff0bd;color:#795310}.breed-title{flex-wrap:wrap}

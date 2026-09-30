@@ -10,8 +10,8 @@ const {presentPigeonResult}=require('../lib/game/presentation');
 
 const methods=[
   'acknowledgeDiscovery','adopt','battle','buyItem','buyPack','claimAchievement','claimDailyQuest','claimDailyReward','clean',
-  'discoverDaily','discoveries','feed','finishCrumbGame','getAchievements','getCurrentPigeon','getDailyQuests',
-  'getInventory','getPacks','getPigeon','getStarters','play','sleep','startCrumbGame','treatPigeon','visitPigeonDex'
+  'discoverDaily','discoveries','feed','finishCrumbGame','getAchievements','getBattleStats','getCurrentPigeon','getDailyQuests',
+  'getInventory','getPacks','getPigeon','getPlayerProfile','getStarters','play','setProfilePublic','sleep','startCrumbGame','toggleFavorite','treatPigeon','visitPigeonDex'
 ];
 
 test('one game facade composes every domain service without changing the legacy entry point',()=>{
@@ -19,7 +19,7 @@ test('one game facade composes every domain service without changing the legacy 
   assert.deepEqual(current,methods);
   assert.deepEqual(Object.keys(createGameRepository({})).sort(),methods);
   assert.deepEqual(Object.keys(legacyFactory({})).sort(),methods);
-  assert.equal(SERVICE_FACTORIES.length,16);
+  assert.equal(SERVICE_FACTORIES.length,17);
 });
 
 test('shared request and service helpers preserve validation and transport metadata',()=>{

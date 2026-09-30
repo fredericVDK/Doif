@@ -116,6 +116,14 @@ function fakeSupabase({ gameDb } = {}) {
       assert.ok(id,"Discoveries must be scoped to the verified user");
       return response((await gameDb.query("SELECT species_id,discovered_at,seen_at FROM public.game_pigeon_discoveries WHERE user_id=$1 ORDER BY species_id LIMIT $2 OFFSET $3",[id,Number(url.searchParams.get("limit") || 1000),Number(url.searchParams.get("offset") || 0)])).rows);
     }
+    if(url.pathname === "/rest/v1/game_pigeon_favorites") {
+      assert.equal(request.headers.get("apikey"),"test-server-secret");
+      const id=url.searchParams.get("user_id")?.replace(/^eq\./,"");
+      assert.ok(id,"Favorites must be scoped to the verified user");
+      if(!gameDb)return response([]);
+      try{return response((await gameDb.query("SELECT species_id FROM public.game_pigeon_favorites WHERE user_id=$1 ORDER BY species_id LIMIT $2 OFFSET $3",[id,Number(url.searchParams.get("limit")||1000),Number(url.searchParams.get("offset")||0)])).rows);}
+      catch(error){return response({code:error.code,message:'Favorites unavailable'},400);}
+    }
     if(["/rest/v1/rpc/record_pigeon_discovery","/rest/v1/rpc/acknowledge_pigeon_discovery"].includes(url.pathname)) {
       assert.equal(request.headers.get("apikey"),"test-server-secret");
       assert.deepEqual(Object.keys(body).sort(),["p_species_id","p_user_id"]);
@@ -196,6 +204,26 @@ function fakeSupabase({ gameDb } = {}) {
       try{return response((await gameDb.query('SELECT public.battle_game_pigeon($1,$2) AS result',[body.p_user_id,body.p_request_id])).rows[0].result);}
       catch(error){return response({code:error.code,message:'Test battle failure'},400);}
     }
+    if(url.pathname==='/rest/v1/rpc/get_game_battle_stats') {
+      assert.deepEqual(Object.keys(body),['p_user_id']);
+      try{return response((await gameDb.query('SELECT public.get_game_battle_stats($1) AS result',[body.p_user_id])).rows[0].result);}
+      catch(error){return response({code:error.code,message:'Test battle stats failure'},400);}
+    }
+    if(url.pathname==='/rest/v1/rpc/toggle_game_pigeon_favorite') {
+      assert.deepEqual(Object.keys(body).sort(),['p_species_id','p_user_id']);
+      try{return response((await gameDb.query('SELECT public.toggle_game_pigeon_favorite($1,$2) AS result',[body.p_user_id,body.p_species_id])).rows[0].result);}
+      catch(error){return response({code:error.code,message:'Test favorite failure'},400);}
+    }
+    if(url.pathname==='/rest/v1/rpc/get_game_player_profile') {
+      assert.deepEqual(Object.keys(body).sort(),['p_username','p_viewer_user_id']);
+      try{return response((await gameDb.query('SELECT public.get_game_player_profile($1,$2) AS result',[body.p_username,body.p_viewer_user_id])).rows[0].result);}
+      catch(error){return response({code:error.code,message:'Test player profile failure'},400);}
+    }
+    if(url.pathname==='/rest/v1/rpc/set_game_profile_public') {
+      assert.deepEqual(Object.keys(body).sort(),['p_public','p_user_id']);
+      try{return response((await gameDb.query('SELECT public.set_game_profile_public($1,$2) AS result',[body.p_user_id,body.p_public])).rows[0].result);}
+      catch(error){return response({code:error.code,message:'Test profile privacy failure'},400);}
+    }
     if(url.pathname==='/rest/v1/rpc/get_pigeon_pack_status') {
       assert.equal(request.headers.get('apikey'),'test-server-secret');
       assert.deepEqual(Object.keys(body),['p_user_id']);
@@ -240,6 +268,11 @@ function fakeSupabase({ gameDb } = {}) {
       assert.ok(gameDb,'Admin account tests use actual SQL');
       try{return response((await gameDb.query('SELECT public.get_game_admin_accounts($1) AS result',[body.p_admin_user_id])).rows[0].result);}
       catch(error){return response({code:error.code,message:'Test admin failure'},400);}
+    }
+    if(url.pathname==='/rest/v1/rpc/get_game_admin_economy') {
+      assert.equal(request.headers.get('apikey'),'test-server-secret');
+      try{return response((await gameDb.query('SELECT public.get_game_admin_economy($1) AS result',[body.p_admin_user_id])).rows[0].result);}
+      catch(error){return response({code:error.code,message:'Test economy failure'},400);}
     }
     if(url.pathname==='/rest/v1/rpc/grant_game_admin_coins') {
       assert.equal(request.headers.get('apikey'),'test-server-secret');

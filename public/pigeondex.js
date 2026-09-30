@@ -10,6 +10,8 @@ const statusEl = document.querySelector("#status");
 const searchInput = document.querySelector("#searchInput");
 const kindFilter = document.querySelector("#kindFilter");
 const originFilter = document.querySelector("#originFilter");
+const discoveryFilter = document.querySelector("#discoveryFilter");
+const rarityFilter = document.querySelector("#rarityFilter");
 const randomButton = document.querySelector("#randomButton");
 const favoritesButton = document.querySelector("#favoritesButton");
 const clearFiltersButton = document.querySelector("#clearFiltersButton");
@@ -120,6 +122,8 @@ function currentFilters() {
   return {
     kind: kindFilter.value,
     origin: originFilter.value,
+    discovery: discoveryFilter.value,
+    rarity: rarityFilter.value,
   };
 }
 
@@ -128,6 +132,8 @@ function resetListFilters({ includeSearch = true, includeFavorites = true } = {}
 
   kindFilter.value = "";
   originFilter.value = "";
+  discoveryFilter.value = "";
+  rarityFilter.value = "";
 
   if (includeFavorites) {
     showFavoritesOnly = false;
@@ -359,7 +365,7 @@ async function loadBreeds() {
 }
 
 function applyPersonalDex(data) {
-  personalDex=data; breeds=data.breeds; catalogSources=data.sources;
+  personalDex=data; breeds=data.breeds; catalogSources=data.sources;favorites=new Set(data.favorites||[]);
   const c=data.counts, discovered=c.discoveredSpecies+c.discoveredBreeds, total=c.species+c.breeds;
   document.getElementById("discoveryProgress").innerHTML=`<strong>${discovered} / ${total} pigeons discovered</strong>
     <p>${c.discoveredSpecies} / ${c.species} wild species · ${c.discoveredBreeds} / ${c.breeds} domestic breeds</p>
@@ -391,8 +397,10 @@ function visibleBreeds() {
       .includes(query);
     const matchesOrigin = !filters.origin || originValues(breed.origin).includes(filters.origin);
     const matchesFavorite = !showFavoritesOnly || favorites.has(breed.id);
+    const matchesDiscovery=!filters.discovery||(filters.discovery==='discovered'?breed.discovered!==false:breed.discovered===false);
+    const matchesRarity=!filters.rarity||String(breed.gameRarity||'not assigned').toLowerCase()===filters.rarity;
 
-    return (!filters.kind || breed.kind === filters.kind) && matchesSearch && matchesOrigin && matchesFavorite;
+    return (!filters.kind || breed.kind === filters.kind) && matchesSearch && matchesOrigin && matchesFavorite && matchesDiscovery && matchesRarity;
   });
 }
 
@@ -440,7 +448,7 @@ function renderCard(breed) {
         ${photoCredit(breed)}
         ${catalogLabel(breed)}
         <div class="breed-title">
-          <h2><button class="title-button" type="button" data-detail="${escapeHtml(breed.id)}">${escapeHtml(breed.name)}</button></h2>
+          <h2><button class="title-button" type="button" data-detail="${escapeHtml(breed.id)}">${escapeHtml(breed.name)}</button></h2>${breed.gameRarity?`<span class="rarity-badge rarity-${escapeHtml(String(breed.gameRarity).toLowerCase().replaceAll(' ','-'))}">${escapeHtml(breed.gameRarity)}</span>`:''}
           <button class="icon-button ${isFavorite ? "is-active" : ""}" type="button" data-favorite="${escapeHtml(breed.id)}" aria-label="Favorite ${escapeHtml(breed.name)}">&#9733;</button>
         </div>
         <div class="facts">
@@ -755,14 +763,14 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;");
 }
 
-function toggleFavorite(id) {
-  if (favorites.has(id)) {
-    favorites.delete(id);
-  } else {
-    favorites.add(id);
+async function toggleFavorite(id) {
+  if(personalDex){
+    const data=await window.PigeonDiscovery.request('/api/game/discoveries/favorite',{speciesId:id});
+    if(data.favorite)favorites.add(id);else favorites.delete(id);
+  }else{
+    if(favorites.has(id))favorites.delete(id);else favorites.add(id);
+    try {localStorage.setItem(scopedKey(favoritesKey), JSON.stringify([...favorites]));} catch {}
   }
-
-  try {localStorage.setItem(scopedKey(favoritesKey), JSON.stringify([...favorites]));} catch {}
   render();
 }
 
@@ -947,13 +955,13 @@ function fightBattle() {
   }, 5000);
 }
 
-breedGrid.addEventListener("click", (event) => {
+breedGrid.addEventListener("click", async (event) => {
   const favoriteButton = event.target.closest("[data-favorite]");
   const compareButton = event.target.closest("[data-compare]");
   const battleButton = event.target.closest("[data-battle]");
   const detailButton = event.target.closest("[data-detail]");
 
-  if (favoriteButton) toggleFavorite(favoriteButton.dataset.favorite);
+  if (favoriteButton)try{favoriteButton.disabled=true;await toggleFavorite(favoriteButton.dataset.favorite);}catch(error){setStatus(error.message);favoriteButton.disabled=false;}
   if (compareButton) toggleCompare(compareButton.dataset.compare);
   if (battleButton) toggleBattle(battleButton.dataset.battle);
   if (detailButton) openDetail(detailButton.dataset.detail);
@@ -975,7 +983,7 @@ window.addEventListener("popstate", () => {
 function renderFiltered() {visibleLimit=36;render();}
 document.getElementById("morePigeons").addEventListener("click",()=>{visibleLimit+=36;render();});
 searchInput.addEventListener("input", renderFiltered);
-[kindFilter, originFilter].forEach((filter) => {
+[kindFilter, originFilter, discoveryFilter, rarityFilter].forEach((filter) => {
   filter.addEventListener("change", renderFiltered);
 });
 

@@ -8,7 +8,7 @@ const {renderInventoryPage,renderShopPage}=require('../lib/game/pages');
 const read=file=>fs.readFileSync(path.join(__dirname,'..',file),'utf8');
 const core=[
   ['home','/','Home'],['my-pigeon','/my-pigeon','My Pigeon'],['pigeondex','/pigeondex.html','PigeonDex'],
-  ['shop','/shop','Shop'],['inventory','/inventory','Inventory'],['pigder','/pigder.html','Pigder'],
+  ['shop','/shop','Shop'],['inventory','/inventory','Inventory'],['profile','/profile','Profile'],['pigder','/pigder.html','Pigder'],
   ['drawings','/drawings.html','Drawings'],['api','/api-docs.html','API']
 ];
 function nav(html) {const match=html.match(/<nav class="[^"]*global-nav[^"]*"[^>]*>([\s\S]*?)<\/nav>/);assert.ok(match,'global navigation exists');return match[0];}
@@ -17,13 +17,13 @@ function anchors(html) {return [...html.matchAll(/<a href="([^"]+)"([^>]*)>([^<]
 test('central navigation defines the requested destinations in one stable order',()=>{
   assert.deepEqual(LINKS,core);
   assert.deepEqual(TAMAGOTCHI_LINKS.map(([,href,label])=>[href,label]),[
-    ['/my-pigeon','My Pigeon'],['/shop','Shop'],['/inventory','Inventory']
+    ['/my-pigeon','My Pigeon'],['/shop','Shop'],['/inventory','Inventory'],['/profile','Profile']
   ]);
   const basic=anchors(renderNavigation('home'));
   assert.deepEqual(basic.map(({href,label})=>[href,label]),[
     ...PUBLIC_LINKS.map(([,href,label])=>[href,label]),['/sign-in','Login']
   ]);
-  assert.doesNotMatch(renderNavigation(),/My Pigeon|Shop|Inventory|Sign out|Admin/);
+  assert.doesNotMatch(renderNavigation(),/My Pigeon|Shop|Inventory|Profile|Sign out|Admin/);
   assert.match(renderNavigation(),/href="\/sign-in" class="login-link">Login/);
   const signedIn=anchors(renderNavigation('shop',{signedIn:true}));
   assert.deepEqual(signedIn.slice(0,-1).map(({href,label})=>[href,label]),core.map(([,href,label])=>[href,label]));
@@ -42,7 +42,7 @@ test('public pages start with public links and login without exposing Tamagotchi
     assert.deepEqual(links.map(({href,label})=>[href,label]),[
       ...PUBLIC_LINKS.map(([,href,label])=>[href,label]),['/sign-in','Login']
     ],file);
-    assert.doesNotMatch(nav(html),/My Pigeon|Shop|Inventory/,file);
+    assert.doesNotMatch(nav(html),/My Pigeon|Shop|Inventory|Profile/,file);
     const selected=links.find(link=>link.attrs.includes('aria-current="page"'));
     assert.equal(selected?.label,current||undefined,file);
     assert.match(html,/site-navigation\.css/,file);
@@ -83,7 +83,7 @@ test('public navigation upgrades after a verified account session',()=>{
 });
 
 test('all navigation targets resolve to existing public files or owned application routes',()=>{
-  const routeTargets=new Set(['/','/my-pigeon','/shop','/inventory']);
+  const routeTargets=new Set(['/','/my-pigeon','/profile','/shop','/inventory']);
   for(const [,href] of core) {
     if(routeTargets.has(href)) continue;
     assert.equal(fs.existsSync(path.join(__dirname,'..','public',href.slice(1))),true,href);

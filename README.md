@@ -264,6 +264,11 @@ shows privacy-limited account progress and permits audited coin grants of 1 to
 100,000 coins. It can also permanently remove a non-admin account after its exact
 username is typed as confirmation. Apply `migrations/028_account_admin.sql` once after migration 027;
 the unique `FredAdmin` account is then redirected to `/admin.html` after login.
+Phase 37 adds the [progression and social layer](docs/progression-social.md): a
+seven-day login streak, deeper battles with ranks and injuries, level unlocks,
+account-saved PigeonDex favourites and filters, public/private player profiles,
+and a server-calculated economy dashboard for administrators. Apply
+`migrations/029_progression_social.sql` once after migration 028.
 The player-facing catalogue is photo-only: 269 wild species and 137 domestic
 breeds currently qualify. Records that would use the generic replacement image
 are excluded from PigeonDex, daily discovery and catalogue API results.

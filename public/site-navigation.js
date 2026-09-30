@@ -15,6 +15,7 @@
     ['/pigeondex.html', 'PigeonDex'],
     ['/shop', 'Shop'],
     ['/inventory', 'Inventory'],
+    ['/profile', 'Profile'],
     ['/pigder.html', 'Pigder'],
     ['/drawings.html', 'Drawings'],
     ['/api-docs.html', 'API']

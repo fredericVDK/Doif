@@ -5,6 +5,10 @@ username, join date, coin balance, PigeonDex discovery count and current pigeon.
 The dashboard deliberately excludes email addresses, Supabase IDs and all
 authentication data.
 
+After migration 029 it also shows the total, average and highest coin balances,
+coin creation from rewards, games, battles and admin grants, and spending in
+the shop, packs and clinic.
+
 ## Setup
 
 1. Apply `migrations/028_account_admin.sql` in the Supabase SQL Editor after
@@ -33,6 +37,7 @@ verify the current session and administrator membership:
 | Method | Route | Purpose |
 | --- | --- | --- |
 | `GET` | `/api/admin/accounts` | Return the privacy-limited account list |
+| `GET` | `/api/admin/economy` | Return server-calculated economy totals |
 | `POST` | `/api/admin/coins` | Add coins using `{ username, amount }` |
 
 All admin responses are private and uncached. Coin requests also require the

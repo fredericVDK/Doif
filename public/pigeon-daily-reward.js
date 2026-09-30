@@ -19,6 +19,8 @@
   };
   const showReward=result => {
     const dialog=document.createElement("dialog"), returnFocus=document.activeElement;
+    const streak=Number(result.streak?.days)||1,cycle=Number(result.streak?.cycleDay)||1;
+    const days=Array.from({length:7},(_,index)=>`<span class="streak-day ${index+1<cycle?'is-earned':''} ${index+1===cycle?'is-current':''}">Day ${index+1}${index===6?'<br>Bonus':''}</span>`).join('');
     dialog.className="daily-reward-dialog";
     dialog.setAttribute("aria-labelledby","dailyRewardTitle");
     dialog.innerHTML=`<p class="daily-reward-eyebrow">First visit today</p>
@@ -29,6 +31,7 @@
         <li><span aria-hidden="true">🪙</span><strong>+${Number(result.effects.coins).toLocaleString("en")} Pigeon Coins</strong></li>
         <li><span aria-hidden="true">⭐</span><strong>+${Number(result.effects.xp).toLocaleString("en")} XP</strong></li>
       </ul>
+      <div class="daily-streak"><strong>🔥 ${streak}-day streak</strong><span>Return each UTC day. Day 7 gives 200 coins and 50 XP.</span><div class="streak-days">${days}</div></div>
       <p class="daily-reward-reset">Next reward after 00:00 UTC.</p>
       <button type="button" class="daily-reward-continue">Continue</button>`;
     document.body.append(dialog);

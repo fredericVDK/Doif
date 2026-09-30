@@ -6,7 +6,7 @@ const {PGlite}=require('@electric-sql/pglite');
 const {fixture}=require('../test-support/auth-fixture');
 
 let db;
-const migrations=['001_tamagotchi.sql','002_adoption.sql','003_time_engine.sql','004_feed.sql','005_play.sql','006_clean.sql','007_sleep.sql','008_xp_levels.sql','009_growth_stages.sql','010_coins.sql','011_discoveries.sql','012_daily_reward.sql','013_inventory.sql','014_shop.sql','015_daily_quests.sql','016_achievements.sql','017_catch_the_crumbs.sql','018_inventory_feeding.sql','019_pigeon_battles.sql','020_automatic_battles.sql','021_battle_health.sql','022_level_scaled_battle_damage.sql','023_pigeon_packs.sql','024_pigeon_clinic.sql','025_more_quests_achievements.sql','026_more_permanent_achievements.sql','027_username_password_accounts.sql','028_account_admin.sql'];
+const migrations=['001_tamagotchi.sql','002_adoption.sql','003_time_engine.sql','004_feed.sql','005_play.sql','006_clean.sql','007_sleep.sql','008_xp_levels.sql','009_growth_stages.sql','010_coins.sql','011_discoveries.sql','012_daily_reward.sql','013_inventory.sql','014_shop.sql','015_daily_quests.sql','016_achievements.sql','017_catch_the_crumbs.sql','018_inventory_feeding.sql','019_pigeon_battles.sql','020_automatic_battles.sql','021_battle_health.sql','022_level_scaled_battle_damage.sql','023_pigeon_packs.sql','024_pigeon_clinic.sql','025_more_quests_achievements.sql','026_more_permanent_achievements.sql','027_username_password_accounts.sql','028_account_admin.sql','029_progression_social.sql'];
 
 before(async()=>{
   db=new PGlite();
@@ -49,6 +49,7 @@ test('FredAdmin is promoted and sent to the protected account dashboard',async t
   assert.match(html,/FlockMember/);
   assert.match(html,/account-admin\.js/);
   assert.match(html,/data-delete-account/);
+  assert.match(html,/Economy overview/);
   assert.match(html,/active administrator account is protected/);
   assert.doesNotMatch(html,new RegExp(player.id));
   assert.doesNotMatch(html,/@accounts\.pigeoncrumbs\.invalid/);
@@ -98,6 +99,8 @@ test('admin can grant validated coins by username and every grant is audited',as
   assert.equal(listing.count,2);
   assert.deepEqual(listing.accounts.map(account=>account.username),['CoinBird','FredAdmin']);
   assert.deepEqual(Object.keys(listing.accounts[0]).sort(),['coins','createdAt','discoveries','isAdmin','pigeon','username']);
+  const economy=await(await app.request('/api/admin/economy')).json();
+  assert.equal(economy.accounts,2);assert.equal(economy.totalCoins,0);
 
   const grant=await app.request('/api/admin/coins',{body:{username:'coinbird',amount:1250,userId:admin.id,coins:999999}});
   assert.equal(grant.status,200);
@@ -123,6 +126,7 @@ test('admin tables and functions are unavailable to browser database roles',asyn
     try{
       await assert.rejects(db.query('SELECT * FROM public.game_admins'),{code:'42501'});
       await assert.rejects(db.query('SELECT public.get_game_admin_accounts($1)',[adminId]),{code:'42501'});
+      await assert.rejects(db.query('SELECT public.get_game_admin_economy($1)',[adminId]),{code:'42501'});
       await assert.rejects(db.query("SELECT public.grant_game_admin_coins($1,'FredAdmin',1)",[adminId]),{code:'42501'});
     }finally{await db.exec('RESET ROLE');}
   }
