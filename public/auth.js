@@ -1,7 +1,7 @@
 const accountForm = document.querySelector("#accountForm");
 const accountStatus = document.querySelector("#accountStatus");
 const endpoints = { "sign-up": "/api/auth/sign-up", "sign-in": "/api/auth/sign-in", profile: "/api/auth/profile", logout: "/api/auth/sign-out" };
-const destinations = new Set(["/adopt", "/my-pigeon", "/complete-profile", "/sign-in?notice=signed-out"]);
+const destinations = new Set(["/adopt", "/my-pigeon", "/admin.html", "/complete-profile", "/sign-in?notice=signed-out"]);
 
 accountForm?.addEventListener("submit", async event => {
   event.preventDefault();

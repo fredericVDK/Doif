@@ -29,6 +29,7 @@ async function createPlayer(app,username){
 }
 
 test('FredAdmin is promoted and sent to the protected account dashboard',async t=>{
+  assert.match(fs.readFileSync(path.join(__dirname,'../public/auth.js'),'utf8'),/"\/admin\.html"/);
   const app=await fixture(t,{gameDb:db});
   const signup=await app.signup('FredAdmin');
   assert.equal(signup.status,200);
