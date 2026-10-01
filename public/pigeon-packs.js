@@ -29,10 +29,10 @@
           <p id="packOpeningMessage" aria-live="polite">Choosing your pigeons.</p>
         </div>
         <div class="pack-opening-theatre">
-          <div class="animated-pigeon-pack" aria-hidden="true">
-            <div class="pack-tear-strip"><span></span></div>
-            <div class="pack-wrapper-top"></div>
-            <div class="pack-wrapper-body">
+          <div class="animated-pigeon-pack">
+            <div class="pack-tear-strip" aria-hidden="true"><span></span></div>
+            <button class="pack-wrapper-top pack-open-trigger" type="button" aria-label="Pull to open pack" aria-describedby="packOpeningMessage" disabled></button>
+            <div class="pack-wrapper-body" aria-hidden="true">
               <span class="pack-shine"></span>
               <img src="${JACOBIN_IMAGE}" alt="">
               <div><small>PIGEON CRUMBS</small><strong>Discovery Pack</strong><span>Featuring the Jacobin pigeon</span></div>
@@ -69,6 +69,7 @@
   const openingCards=openingDialog.querySelector('.pack-opening-cards');
   const openingActions=openingDialog.querySelector('.pack-opening-actions');
   const openingX=openingDialog.querySelector('.pack-opening-x');
+  const openingTrigger=openingDialog.querySelector('.pack-open-trigger');
   const rarities=new Set(['common','uncommon','rare','epic','legendary']);
 
   function rarityOf(item){
@@ -98,6 +99,7 @@
     openingActions.hidden=true;
     openingActions.querySelector('a').hidden=false;
     openingX.hidden=true;
+    openingTrigger.disabled=true;
     openingTitle.textContent=type==='big'?'Your Big Pack is arriving…':'Your Normal Pack is arriving…';
     openingMessage.textContent='Choosing your pigeons.';
     document.body.classList.add('pack-animation-open');
@@ -131,12 +133,22 @@
     return new Promise(resolve=>window.setTimeout(resolve,reduced?Math.min(milliseconds,40):milliseconds));
   }
 
+  function waitForPull(){
+    return new Promise(resolve=>openingTrigger.addEventListener('click',resolve,{once:true}));
+  }
+
   async function animateReveal(data,startedAt){
     const remaining=Math.max(0,850-(Date.now()-startedAt));
     if(remaining)await wait(remaining);
-    openingTitle.textContent='Tear it open!';
-    openingMessage.textContent='Your pigeons are ready.';
+    openingTitle.textContent='Pull to open!';
+    openingMessage.textContent='Your pigeons are ready. Click the tab on the pack to tear it open.';
     openingDialog.classList.remove('is-loading');
+    openingDialog.classList.add('is-ready-to-open');
+    openingTrigger.disabled=false;
+    openingTrigger.focus();
+    await waitForPull();
+    openingTrigger.disabled=true;
+    openingDialog.classList.remove('is-ready-to-open');
     openingDialog.classList.add('is-tearing');
     await wait(720);
     openingCards.style.setProperty('--pack-card-count',data.pigeons.length);
@@ -154,7 +166,8 @@
   }
 
   function showOpeningError(message){
-    openingDialog.classList.remove('is-loading');
+    openingDialog.classList.remove('is-loading','is-ready-to-open');
+    openingTrigger.disabled=true;
     openingDialog.classList.add('has-error');
     openingTitle.textContent='The pack stayed closed';
     openingMessage.textContent=message;
