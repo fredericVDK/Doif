@@ -209,6 +209,30 @@ function fakeSupabase({ gameDb } = {}) {
       try{return response((await gameDb.query('SELECT public.get_game_battle_stats($1) AS result',[body.p_user_id])).rows[0].result);}
       catch(error){return response({code:error.code,message:'Test battle stats failure'},400);}
     }
+    if(url.pathname==='/rest/v1/rpc/get_game_race_lobby') {
+      assert.equal(request.headers.get('apikey'),'test-server-secret');
+      assert.deepEqual(Object.keys(body),['p_user_id']);
+      assert.ok(gameDb,'Race tests use actual SQL');
+      if(state.gameDown)return response({code:'PGRST205'},503);
+      try{return response((await gameDb.query('SELECT public.get_game_race_lobby($1) AS result',[body.p_user_id])).rows[0].result);}
+      catch(error){return response({code:error.code,message:'Test race lobby failure'},400);}
+    }
+    if(url.pathname==='/rest/v1/rpc/start_game_pigeon_race') {
+      assert.equal(request.headers.get('apikey'),'test-server-secret');
+      assert.deepEqual(Object.keys(body).sort(),['p_destination','p_opponent_pigeon_id','p_origin','p_request_id','p_user_id']);
+      assert.ok(gameDb,'Race tests use actual SQL');
+      if(state.gameDown)return response({code:'PGRST205'},503);
+      try{return response((await gameDb.query('SELECT public.start_game_pigeon_race($1,$2,$3,$4,$5) AS result',[body.p_user_id,body.p_request_id,body.p_origin,body.p_destination,body.p_opponent_pigeon_id])).rows[0].result);}
+      catch(error){return response({code:error.code,message:'Test race start failure'},400);}
+    }
+    if(url.pathname==='/rest/v1/rpc/collect_game_pigeon_race') {
+      assert.equal(request.headers.get('apikey'),'test-server-secret');
+      assert.deepEqual(Object.keys(body).sort(),['p_race_id','p_user_id']);
+      assert.ok(gameDb,'Race tests use actual SQL');
+      if(state.gameDown)return response({code:'PGRST205'},503);
+      try{return response((await gameDb.query('SELECT public.collect_game_pigeon_race($1,$2) AS result',[body.p_user_id,body.p_race_id])).rows[0].result);}
+      catch(error){return response({code:error.code,message:'Test race result failure'},400);}
+    }
     if(url.pathname==='/rest/v1/rpc/toggle_game_pigeon_favorite') {
       assert.deepEqual(Object.keys(body).sort(),['p_species_id','p_user_id']);
       try{return response((await gameDb.query('SELECT public.toggle_game_pigeon_favorite($1,$2) AS result',[body.p_user_id,body.p_species_id])).rows[0].result);}

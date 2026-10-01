@@ -12,6 +12,7 @@
   const signedInLinks = [
     ['/', 'Home'],
     ['/my-pigeon', 'My Pigeon'],
+    ['/race', 'Race'],
     ['/pigeondex.html', 'PigeonDex'],
     ['/shop', 'Shop'],
     ['/inventory', 'Inventory'],

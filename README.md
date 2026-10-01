@@ -274,6 +274,12 @@ Phase 38 raises every daily quest to five saved actions. Apply
 Phase 39 adds a live battle recovery time and makes a successful Clinic visit
 clear both the injury and battle cooldown immediately. Apply
 `migrations/031_clinic_resets_battle_recovery.sql` once after migration 030.
+Phase 40 adds the protected [Pigeon Race](docs/pigeon-races.md) page. Players
+choose two world cities and one of three other player pigeons, pay 100 coins,
+and receive the hidden result after a distance-based flight time. Level-based
+flight stats influence the winner while a controlled random factor permits an
+upset. Winning awards route- and opponent-scaled coins and XP. Apply
+`migrations/032_pigeon_races.sql` once after migration 031.
 The player-facing catalogue is photo-only: 269 wild species and 137 domestic
 breeds currently qualify. Records that would use the generic replacement image
 are excluded from PigeonDex, daily discovery and catalogue API results.

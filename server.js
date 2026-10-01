@@ -71,6 +71,8 @@ const allowedRootFiles = new Set([
   "pigeon-packs.css",
   "pigeon-clinic.js",
   "pigeon-clinic.css",
+  "pigeon-race.css",
+  "pigeon-race.js",
   "pigeon-discovery.js",
   "pigeon-discovery.css",
   "inventory.css",
