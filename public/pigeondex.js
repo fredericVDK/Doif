@@ -197,7 +197,7 @@ function updateDailyHistory(breed) {
 }
 
 function rarityFor(breed) {
-  if (personalDex) return breed.gameRarity || "Not assigned";
+  if (breed.gameRarity) return String(breed.gameRarity).replace(/^./, letter => letter.toUpperCase());
   if (breed.kind === "species") return "Not assessed";
   const text = `${breed.name} ${breed.fact}`.toLowerCase();
 
@@ -238,7 +238,10 @@ function weightScore(breed) {
 function rarityScore(breed) {
   const rarity = rarityFor(breed);
 
-  if (rarity === "Rare") return 92;
+  if (rarity === "Legendary") return 98;
+  if (rarity === "Epic") return 90;
+  if (rarity === "Rare") return 78;
+  if (rarity === "Uncommon") return 62;
   if (rarity === "Hard to document") return 78;
   if (rarity === "Specialist breed") return 68;
   return 45;
@@ -350,7 +353,7 @@ async function loadBreeds() {
       breeds = (await fetchCachedBreeds()).filter(hasSpecificImage);
       document.getElementById("discoveryProgress").innerHTML=session.needsProfile
         ? '<a href="/complete-profile">Choose your username to start your personal PigeonDex →</a>'
-        : '<strong>A whole world of pigeons.</strong><p><a href="/sign-in">Sign in to collect discoveries</a>, or explore the public catalogue below.</p>';
+        : '<strong>A whole world of pigeons.</strong><p><a href="/sign-in">Sign in to collect discoveries</a>, or explore the public catalogue below.</p><p>Rarity is a fixed game classification. Profile traits combine source facts with consistent PigeonDex estimates.</p>';
     }
     sortBreeds();
     populateFilters();
@@ -370,6 +373,7 @@ function applyPersonalDex(data) {
   document.getElementById("discoveryProgress").innerHTML=`<strong>${discovered} / ${total} pigeons discovered</strong>
     <p>${c.discoveredSpecies} / ${c.species} wild species · ${c.discoveredBreeds} / ${c.breeds} domestic breeds</p>
     <p>Your adopted pigeon counts too. Meet today's pigeon to add a discovery. A new pigeon arrives each day at 00:00 UTC.</p>
+    <p>Rarity is a fixed game classification. Profile traits combine source facts with consistent PigeonDex estimates.</p>
     <progress value="${discovered}" max="${total || 1}" aria-label="Pigeons discovered"></progress>`;
 }
 
@@ -398,7 +402,7 @@ function visibleBreeds() {
     const matchesOrigin = !filters.origin || originValues(breed.origin).includes(filters.origin);
     const matchesFavorite = !showFavoritesOnly || favorites.has(breed.id);
     const matchesDiscovery=!filters.discovery||(filters.discovery==='discovered'?breed.discovered!==false:breed.discovered===false);
-    const matchesRarity=!filters.rarity||String(breed.gameRarity||'not assigned').toLowerCase()===filters.rarity;
+    const matchesRarity=!filters.rarity||String(breed.gameRarity||'').toLowerCase()===filters.rarity;
 
     return (!filters.kind || breed.kind === filters.kind) && matchesSearch && matchesOrigin && matchesFavorite && matchesDiscovery && matchesRarity;
   });

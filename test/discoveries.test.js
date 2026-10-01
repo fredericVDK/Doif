@@ -54,6 +54,7 @@ test("adoption unlocks only its catalogue entry; totals distinguish species and 
   const starter=result.breeds.find(p=>p.id==="jacobin pigeon");
   assert.equal(starter.discovered,true);assert.equal(starter.name,"Jacobin pigeon");
   assert.equal(starter.gameRarity,"common");
+  assert.ok(result.breeds.filter(p=>p.discovered).every(p=>p.gameRarity&&p.gameRarity!=="Not assigned"));
   assert.equal(result.pending.length,1);
   const locked=result.breeds.find(p=>!p.discovered);
   assert.equal(locked.name,"Undiscovered pigeon");

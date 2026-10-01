@@ -57,6 +57,11 @@ onderdeel van de bestaande PigeonDex. Favorieten en lokale geschiedenis krijgen
 een accountgebonden browsersleutel, zodat twee spelers in dezelfde browser die
 niet vermengen.
 
+Elke fotoduif krijgt een vaste game-rarity en een volledig profiel met herkomst,
+grootte, vliegtype en temperament. Waar de bron een veld rechtstreeks vermeldt,
+blijft die waarde behouden. Ontbrekende velden worden consequent afgeleid uit de
+soort- of rasbeschrijving en als PigeonDex-profielinformatie gemarkeerd.
+
 ## Opslag en beveiliging
 
 `game_pigeon_discoveries` bewaart `user_id`, `species_id`, `discovered_at` en

@@ -277,6 +277,9 @@ clear both the injury and battle cooldown immediately. Apply
 The player-facing catalogue is photo-only: 269 wild species and 137 domestic
 breeds currently qualify. Records that would use the generic replacement image
 are excluded from PigeonDex, daily discovery and catalogue API results.
+Every displayed pigeon now has a stable game rarity plus an origin, size, flight
+profile and temperament; verified source fields take priority over consistent
+PigeonDex estimates.
 
 See [the model, migration instructions and phase boundaries](docs/tamagotchi-model.md).
 Run `npm run test:game` to execute the schema tests locally with PGlite; no hosted

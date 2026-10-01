@@ -66,6 +66,16 @@ test("the player catalogue includes only pigeons with a real photo", async()=>{
   const catalog=await get();
   assert.equal(catalog.count,406);
   assert.deepEqual(catalog.counts,{species:269,breeds:137});
+  assert.ok(catalog.breeds.every(row=>["origin","size","flight","temperament","gameRarity"].every(field=>row[field]&&row[field]!=="Not listed in source")));
+  assert.deepEqual(new Set(catalog.breeds.map(row=>row.gameRarity)),new Set(["common","uncommon","rare","epic","legendary"]));
+});
+
+test("catalogue profiles infer useful traits without overwriting verified fields",()=>{
+  const records=mergeRecords([normalizeSpecies({...bird(9,"Columbina passerina"),descriptions:{en:"A small dove endemic to Test Island."}})],
+    [{id:"test tumbler",name:"Test Tumbler",origin:"Belgium",image:"https://example.org/tumbler.jpg",hasRealImage:true}]);
+  const species=records.find(row=>row.kind==="species"),breed=records.find(row=>row.kind==="breed");
+  assert.equal(species.origin,"Test Island");assert.equal(species.size,"Small");assert.equal(species.temperament,"Alert, social and tree-dwelling");
+  assert.equal(breed.origin,"Belgium");assert.equal(breed.flight,"Acrobatic flyer");assert.equal(breed.temperament,"Active, energetic and trainable");
 });
 
 test("one refresh is shared by concurrent requests and source failures preserve saved breeds", async () => {
