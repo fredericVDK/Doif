@@ -59,6 +59,18 @@ async function fetchJson(url) {
   return response.json();
 }
 
+async function gameRequest(url, body) {
+  const response = await fetch(url, {
+    credentials: "same-origin",
+    cache: "no-store",
+    signal: AbortSignal.timeout(20000),
+    ...(body ? {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(body)} : {})
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Your PigeonDex could not be loaded. Please try again.");
+  return result;
+}
+
 async function fetchCachedBreeds() {
   const data = await fetchJson(BREED_CACHE_API);
 
@@ -344,11 +356,11 @@ function playBattleSound(kind = "tap") {
 
 async function loadBreeds() {
   try {
-    const session=await window.PigeonDiscovery.request("/api/auth/session");
+    const session=await gameRequest("/api/auth/session");
     if(session.user && !session.needsProfile) {
       dexUserId=session.user.id;
       favorites=new Set(localItems(scopedKey(favoritesKey)));
-      applyPersonalDex(await window.PigeonDiscovery.request("/api/game/discoveries"));
+      applyPersonalDex(await gameRequest("/api/game/discoveries"));
     } else {
       breeds = (await fetchCachedBreeds()).filter(hasSpecificImage);
       document.getElementById("discoveryProgress").innerHTML=session.needsProfile
@@ -359,7 +371,6 @@ async function loadBreeds() {
     populateFilters();
     render();
     renderDaily();
-    if(personalDex) window.PigeonDiscovery.showPending(personalDex.pending);
   } catch (error) {
     console.error(error);
     setStatus("Could not load the pigeon catalogue. Please refresh to try again.");
@@ -384,9 +395,8 @@ dailyPigeon.addEventListener("click",async event=>{
   const status=dailyPigeon.querySelector("[data-discovery-status]");
   status.textContent="Meeting today's pigeon…";
   try {
-    const data=await window.PigeonDiscovery.request("/api/game/discoveries/daily",{speciesId:personalDex.dailyId});
+    const data=await gameRequest("/api/game/discoveries/daily",{speciesId:personalDex.dailyId});
     applyPersonalDex(data);sortBreeds();populateFilters();render();renderDaily();
-    window.PigeonDiscovery.showPending(data.pending);
   } catch(error) {status.textContent=error.message;button.disabled=false;}
 });
 
@@ -769,7 +779,7 @@ function escapeHtml(value) {
 
 async function toggleFavorite(id) {
   if(personalDex){
-    const data=await window.PigeonDiscovery.request('/api/game/discoveries/favorite',{speciesId:id});
+    const data=await gameRequest('/api/game/discoveries/favorite',{speciesId:id});
     if(data.favorite)favorites.add(id);else favorites.delete(id);
   }else{
     if(favorites.has(id))favorites.delete(id);else favorites.add(id);
