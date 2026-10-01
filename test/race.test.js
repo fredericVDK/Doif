@@ -77,6 +77,11 @@ test('supertest receives unlimited test coins and every cooldown resets after an
   const saved=(await db.query('SELECT last_battled_at,injured_until,energy FROM public.game_pigeons WHERE user_id=$1',[supertest.user.id])).rows[0];
   assert.equal(saved.last_battled_at,null); assert.equal(saved.injured_until,null); assert.equal(Number(saved.energy),100);
 
+  response=await supertest.request('/api/game/daily-reward',{body:{}});
+  assert.equal(response.status,200,'daily reward can be claimed');
+  response=await supertest.request('/api/game/daily-reward',{body:{}});
+  assert.equal(response.status,200,'daily reward limit is reset immediately');
+
   const lobby=await(await supertest.request('/api/game/races')).json();
   const started=await(await start(supertest,lobby)).json();
   assert.equal(started.testAccount,true); assert.equal(started.wallet.coins,1000000000);
@@ -87,6 +92,14 @@ test('supertest receives unlimited test coins and every cooldown resets after an
   await db.query('SELECT public.prepare_game_test_account($1)',[supertest.user.id]);
   const packs=(await db.query('SELECT public.get_pigeon_pack_status($1) result',[supertest.user.id])).rows[0].result;
   assert.equal(packs.packs.find(pack=>pack.id==='normal').available,true);
+});
+
+test('supertest dashboard actions remain usable while migration 033 is still being installed',async t=>{
+  const supertest=await account(t,'supertest',4,1000);
+  supertest.provider.state.missingTestReset=true;
+  const response=await supertest.request('/api/game/daily-reward',{body:{}}),data=await response.json();
+  assert.equal(response.status,200); assert.equal(data.claimed,true);
+  assert.equal(data.testAccountMigrationRequired,true); assert.equal(data.testAccount,undefined);
 });
 
 test('route length controls flight time and preview rewards',async t=>{

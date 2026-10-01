@@ -15,7 +15,7 @@ function fakeSupabase({ gameDb } = {}) {
   const codes = new Map();
   const calls = [];
   let sequence = 0;
-  const state = { confirmation: false, storageDown: false, authDown: false, gameDown: false };
+  const state = { confirmation: false, storageDown: false, authDown: false, gameDown: false,missingTestReset:false };
   function response(body, status = 200) {
     return new Response(JSON.stringify(body), { status, headers: {
       "content-type": "application/json", "x-supabase-api-version": "2024-01-01"
@@ -221,6 +221,7 @@ function fakeSupabase({ gameDb } = {}) {
       assert.equal(request.headers.get('apikey'),'test-server-secret');
       assert.deepEqual(Object.keys(body),['p_user_id']);
       assert.ok(gameDb,'Test-account tests use actual SQL');
+      if(state.missingTestReset)return response({code:'PGRST202',message:'Function not found'},404);
       try{return response((await gameDb.query('SELECT public.prepare_game_test_account($1) AS result',[body.p_user_id])).rows[0].result);}
       catch(error){return response({code:error.code,message:'Test-account reset failure'},400);}
     }
