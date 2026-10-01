@@ -269,6 +269,8 @@ seven-day login streak, deeper battles with ranks and injuries, level unlocks,
 account-saved PigeonDex favourites and filters, public/private player profiles,
 and a server-calculated economy dashboard for administrators. Apply
 `migrations/029_progression_social.sql` once after migration 028.
+Phase 38 raises every daily quest to five saved actions. Apply
+`migrations/030_five_action_daily_quests.sql` once after migration 029.
 The player-facing catalogue is photo-only: 269 wild species and 137 domestic
 breeds currently qualify. Records that would use the generic replacement image
 are excluded from PigeonDex, daily discovery and catalogue API results.

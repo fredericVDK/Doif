@@ -7,7 +7,7 @@ const {PGlite}=require('@electric-sql/pglite');
 const {fixture}=require('../test-support/auth-fixture');
 
 let db;
-const files=['001_tamagotchi.sql','../seeds/tamagotchi-starters.sql','002_adoption.sql','003_time_engine.sql','004_feed.sql','005_play.sql','006_clean.sql','007_sleep.sql','008_xp_levels.sql','009_growth_stages.sql','010_coins.sql','011_discoveries.sql','012_daily_reward.sql','013_inventory.sql','014_shop.sql','015_daily_quests.sql','016_achievements.sql','017_catch_the_crumbs.sql','018_inventory_feeding.sql','019_pigeon_battles.sql','020_automatic_battles.sql','021_battle_health.sql','022_level_scaled_battle_damage.sql','023_pigeon_packs.sql','024_pigeon_clinic.sql','025_more_quests_achievements.sql','026_more_permanent_achievements.sql','027_username_password_accounts.sql','028_account_admin.sql','029_progression_social.sql'];
+const files=['001_tamagotchi.sql','../seeds/tamagotchi-starters.sql','002_adoption.sql','003_time_engine.sql','004_feed.sql','005_play.sql','006_clean.sql','007_sleep.sql','008_xp_levels.sql','009_growth_stages.sql','010_coins.sql','011_discoveries.sql','012_daily_reward.sql','013_inventory.sql','014_shop.sql','015_daily_quests.sql','016_achievements.sql','017_catch_the_crumbs.sql','018_inventory_feeding.sql','019_pigeon_battles.sql','020_automatic_battles.sql','021_battle_health.sql','022_level_scaled_battle_damage.sql','023_pigeon_packs.sql','024_pigeon_clinic.sql','025_more_quests_achievements.sql','026_more_permanent_achievements.sql','027_username_password_accounts.sql','028_account_admin.sql','029_progression_social.sql','030_five_action_daily_quests.sql'];
 const read=file=>fs.readFileSync(path.join(__dirname,'..',file.startsWith('../')?file.slice(3):`migrations/${file}`),'utf8');
 before(async()=>{db=new PGlite();await db.exec(`CREATE SCHEMA auth;CREATE TABLE auth.users(id uuid PRIMARY KEY);CREATE ROLE anon NOLOGIN;CREATE ROLE authenticated NOLOGIN;CREATE ROLE service_role NOLOGIN BYPASSRLS;CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT NULL::uuid $$;GRANT USAGE ON SCHEMA public,auth TO anon,authenticated,service_role;`);for(const file of files)await db.exec(read(file));});
 after(async()=>db?.close());beforeEach(async()=>db.exec('TRUNCATE public.game_pigeons,public.game_users,auth.users CASCADE'));
@@ -19,6 +19,18 @@ test('daily reward reaches the server-owned seventh-day bonus',async t=>{
   await db.exec("UPDATE public.game_daily_rewards SET reward_date=current_date-1,streak_day=6");
   reward=await(await app.request('/api/game/daily-reward',{body:{}})).json();
   assert.deepEqual(reward.effects,{coins:200,xp:50});assert.equal(reward.streak.days,7);assert.equal(reward.streak.cycleDay,7);
+});
+
+test('every daily quest requires five saved actions',async t=>{
+  const app=await player(t);const data=await(await app.request('/api/game/quests')).json();
+  assert.equal(data.quests.length,7);assert.deepEqual(data.quests.map(quest=>quest.goal),[5,5,5,5,5,5,5]);
+  assert.deepEqual(data.quests.map(quest=>quest.title),['Feed your pigeon 5 times','Play 5 times','Clean your pigeon 5 times','Let your pigeon sleep 5 times','Complete 5 pigeon battles','Play Catch the Crumbs 5 times','Visit the PigeonDex 5 times']);
+  for(let visit=0;visit<4;visit++)assert.equal((await app.request('/api/game/quests/pigeondex',{body:{}})).status,200);
+  let quest=(await(await app.request('/api/game/quests')).json()).quests.find(item=>item.id==='visit_pigeondex');
+  assert.equal(quest.progress,4);assert.equal(quest.completed,false);
+  assert.equal((await app.request('/api/game/quests/claim',{body:{questId:'visit_pigeondex'}})).status,409);
+  await app.request('/api/game/quests/pigeondex',{body:{}});quest=(await(await app.request('/api/game/quests')).json()).quests.find(item=>item.id==='visit_pigeondex');
+  assert.equal(quest.progress,5);assert.equal(quest.completed,true);
 });
 
 test('PigeonDex favourites persist on the account and reject undiscovered entries',async t=>{

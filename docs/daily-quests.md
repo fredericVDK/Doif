@@ -1,16 +1,17 @@
 # Daily quests (phase 18)
 
-Daily quests give each signed-in pigeon seven small goals per UTC day:
+Daily quests give each signed-in pigeon seven goals per UTC day. From migration
+030 onward, every goal requires five saved actions:
 
 | Quest | Goal | Reward |
 | --- | ---: | ---: |
-| Feed your pigeon | 3 | 20 coins + 15 XP |
-| Play together | 2 | 20 coins + 15 XP |
-| Clean your pigeon | 1 | 15 coins + 10 XP |
-| Let your pigeon sleep | 1 | 10 coins + 5 XP |
-| Complete a pigeon battle | 1 | 25 coins + 15 XP |
-| Play Catch the Crumbs | 1 | 20 coins + 10 XP |
-| Visit the PigeonDex | 1 | 10 coins + 5 XP |
+| Feed your pigeon | 5 | 20 coins + 15 XP |
+| Play together | 5 | 20 coins + 15 XP |
+| Clean your pigeon | 5 | 15 coins + 10 XP |
+| Let your pigeon sleep | 5 | 10 coins + 5 XP |
+| Complete a pigeon battle | 5 | 25 coins + 15 XP |
+| Play Catch the Crumbs | 5 | 20 coins + 10 XP |
+| Visit the PigeonDex | 5 | 10 coins + 5 XP |
 
 Progress appears on **My Pigeon**. A completed quest exposes a **Claim reward**
 button. Claiming is atomic and can succeed only once. Progress and claim state
@@ -31,6 +32,8 @@ Existing profiles, pigeons, balances, inventory, and action receipts are kept.
 
 After migration 024, run `migrations/025_more_quests_achievements.sql` once to
 add the Sleep, Battle and Catch the Crumbs goals. Existing daily progress remains.
+After migration 029, run `migrations/030_five_action_daily_quests.sql` once to
+raise all seven goals to five actions.
 
 The app routes are:
 
