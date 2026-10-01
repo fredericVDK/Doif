@@ -14,7 +14,8 @@
       const data=await response.json();
       if(!response.ok){if(response.status<500)clear();throw new Error(data.error||'The clinic visit could not be confirmed.');}
       window.PigeonCare?.update(data);window.PigeonUI?.update(data.pigeon);clear();
-      message(data.replayed?'This clinic visit was already saved and charged once.':`${data.pigeon.nickname} is back at 100 Health! +${Number(data.effects.health)} Health · ${Math.abs(Number(data.effects.coins))} coins spent.`);
+      window.dispatchEvent(new CustomEvent('pigeon:clinic-treated',{detail:data}));
+      message(data.replayed?'This clinic visit was already saved and charged once. Your pigeon can battle again now.':`${data.pigeon.nickname} is back at 100 Health and can battle again now! +${Number(data.effects.health)} Health · ${Math.abs(Number(data.effects.coins))} coins spent.`);
     }catch(error){message(error instanceof TypeError||['TimeoutError','SyntaxError'].includes(error.name)?'We could not confirm the clinic visit. Try again; the same visit only counts once.':error.message,true);}
     finally{busy=false;button.disabled=false;button.textContent='Visit clinic · ◉ 100';}
   });

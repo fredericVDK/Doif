@@ -12,6 +12,9 @@ De browser maakt alleen een unieke request-ID. De database kiest de tegenstander
 berekent de stijgende moeilijkheid en bepaalt de uitslag. Dezelfde request-ID kan maar
 één keer Energy gebruiken en XP geven. Tussen gevechten geldt een server-side
 cooldown van 30 seconden en een duif heeft minstens 10 actuele Energy nodig.
+Bij een blessure toont de Arena zowel een live afteller als het exacte tijdstip
+waarop de duif opnieuw kan vechten. Een succesvolle behandeling in de Clinic
+wist de blessure en cooldown en activeert de Battle-knop onmiddellijk opnieuw.
 
 ## Eenmalig activeren
 

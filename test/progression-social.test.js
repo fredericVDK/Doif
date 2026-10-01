@@ -7,7 +7,7 @@ const {PGlite}=require('@electric-sql/pglite');
 const {fixture}=require('../test-support/auth-fixture');
 
 let db;
-const files=['001_tamagotchi.sql','../seeds/tamagotchi-starters.sql','002_adoption.sql','003_time_engine.sql','004_feed.sql','005_play.sql','006_clean.sql','007_sleep.sql','008_xp_levels.sql','009_growth_stages.sql','010_coins.sql','011_discoveries.sql','012_daily_reward.sql','013_inventory.sql','014_shop.sql','015_daily_quests.sql','016_achievements.sql','017_catch_the_crumbs.sql','018_inventory_feeding.sql','019_pigeon_battles.sql','020_automatic_battles.sql','021_battle_health.sql','022_level_scaled_battle_damage.sql','023_pigeon_packs.sql','024_pigeon_clinic.sql','025_more_quests_achievements.sql','026_more_permanent_achievements.sql','027_username_password_accounts.sql','028_account_admin.sql','029_progression_social.sql','030_five_action_daily_quests.sql'];
+const files=['001_tamagotchi.sql','../seeds/tamagotchi-starters.sql','002_adoption.sql','003_time_engine.sql','004_feed.sql','005_play.sql','006_clean.sql','007_sleep.sql','008_xp_levels.sql','009_growth_stages.sql','010_coins.sql','011_discoveries.sql','012_daily_reward.sql','013_inventory.sql','014_shop.sql','015_daily_quests.sql','016_achievements.sql','017_catch_the_crumbs.sql','018_inventory_feeding.sql','019_pigeon_battles.sql','020_automatic_battles.sql','021_battle_health.sql','022_level_scaled_battle_damage.sql','023_pigeon_packs.sql','024_pigeon_clinic.sql','025_more_quests_achievements.sql','026_more_permanent_achievements.sql','027_username_password_accounts.sql','028_account_admin.sql','029_progression_social.sql','030_five_action_daily_quests.sql','031_clinic_resets_battle_recovery.sql'];
 const read=file=>fs.readFileSync(path.join(__dirname,'..',file.startsWith('../')?file.slice(3):`migrations/${file}`),'utf8');
 before(async()=>{db=new PGlite();await db.exec(`CREATE SCHEMA auth;CREATE TABLE auth.users(id uuid PRIMARY KEY);CREATE ROLE anon NOLOGIN;CREATE ROLE authenticated NOLOGIN;CREATE ROLE service_role NOLOGIN BYPASSRLS;CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT NULL::uuid $$;GRANT USAGE ON SCHEMA public,auth TO anon,authenticated,service_role;`);for(const file of files)await db.exec(read(file));});
 after(async()=>db?.close());beforeEach(async()=>db.exec('TRUNCATE public.game_pigeons,public.game_users,auth.users CASCADE'));
@@ -50,6 +50,16 @@ test('battle records, injuries and clinic recovery are authoritative',async t=>{
   let blocked=await app.request('/api/game/battle',{body:{requestId:randomUUID()}});assert.equal(blocked.status,409);assert.equal((await blocked.json()).code,'BATTLE_INJURED');
   const clinic=await(await app.request('/api/game/clinic',{body:{requestId:randomUUID()}})).json();assert.equal(clinic.injuryCleared,true);assert.equal(Number(clinic.pigeon.health),100);
   const stats=await(await app.request('/api/game/battle/stats')).json();assert.equal(stats.rank,'Rookie');assert.equal(stats.losses,1);assert.equal(stats.injuredUntil,null);
+  const immediateBattle=await app.request('/api/game/battle',{body:{requestId:randomUUID()}});assert.equal(immediateBattle.status,200);
+});
+
+test('battle recovery UI shows live time and refreshes after clinic treatment',async t=>{
+  const app=await player(t);const html=await(await app.request('/my-pigeon')).text();
+  assert.match(html,/data-injured-until=/);assert.match(html,/pigeon-battle\.js/);
+  const battleScript=fs.readFileSync(path.join(__dirname,'..','public','pigeon-battle.js'),'utf8');
+  const clinicScript=fs.readFileSync(path.join(__dirname,'..','public','pigeon-clinic.js'),'utf8');
+  assert.match(battleScript,/toLocaleTimeString/);assert.match(battleScript,/pigeon:clinic-treated/);
+  assert.match(clinicScript,/new CustomEvent\('pigeon:clinic-treated'/);
 });
 
 test('players can expose and hide their progress profile',async t=>{
