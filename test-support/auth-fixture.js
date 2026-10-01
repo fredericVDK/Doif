@@ -217,6 +217,13 @@ function fakeSupabase({ gameDb } = {}) {
       try{return response((await gameDb.query('SELECT public.get_game_race_lobby($1) AS result',[body.p_user_id])).rows[0].result);}
       catch(error){return response({code:error.code,message:'Test race lobby failure'},400);}
     }
+    if(url.pathname==='/rest/v1/rpc/prepare_game_test_account') {
+      assert.equal(request.headers.get('apikey'),'test-server-secret');
+      assert.deepEqual(Object.keys(body),['p_user_id']);
+      assert.ok(gameDb,'Test-account tests use actual SQL');
+      try{return response((await gameDb.query('SELECT public.prepare_game_test_account($1) AS result',[body.p_user_id])).rows[0].result);}
+      catch(error){return response({code:error.code,message:'Test-account reset failure'},400);}
+    }
     if(url.pathname==='/rest/v1/rpc/start_game_pigeon_race') {
       assert.equal(request.headers.get('apikey'),'test-server-secret');
       assert.deepEqual(Object.keys(body).sort(),['p_destination','p_opponent_pigeon_id','p_origin','p_request_id','p_user_id']);

@@ -280,6 +280,11 @@ and receive the hidden result after a distance-based flight time. Level-based
 flight stats influence the winner while a controlled random factor permits an
 upset. Winning awards route- and opponent-scaled coins and XP. Apply
 `migrations/032_pigeon_races.sql` once after migration 031.
+Phase 41 expands the race map to 25 worldwide locations and gives the weaker
+pigeon a separate 20% guaranteed upset path. It also adds server-only reset
+support for the dedicated `supertest` account and provisions three level-scaled
+race testers through `npm run provision:test-accounts`. Apply
+`migrations/033_race_world_and_test_accounts.sql` once after migration 032.
 The player-facing catalogue is photo-only: 269 wild species and 137 domestic
 breeds currently qualify. Records that would use the generic replacement image
 are excluded from PigeonDex, daily discovery and catalogue API results.

@@ -1,14 +1,7 @@
--- Phase 40. Server-authoritative, timed pigeon races between player pigeons.
--- Apply once after 031_clinic_resets_battle_recovery.sql.
+-- Phase 41. Expand racing worldwide, guarantee a 20% underdog upset chance,
+-- and add server-only reset support for the dedicated supertest account.
+-- Apply once after 032_pigeon_races.sql.
 BEGIN;
-
-CREATE TABLE public.game_race_locations (
-  id text PRIMARY KEY CHECK(id~'^[a-z0-9_]+$'),
-  city text NOT NULL,
-  country text NOT NULL,
-  latitude numeric NOT NULL CHECK(latitude BETWEEN -90 AND 90),
-  longitude numeric NOT NULL CHECK(longitude BETWEEN -180 AND 180)
-);
 
 INSERT INTO public.game_race_locations(id,city,country,latitude,longitude) VALUES
   ('brussels','Brussels','Belgium',50.8503,4.3517),
@@ -35,113 +28,57 @@ INSERT INTO public.game_race_locations(id,city,country,latitude,longitude) VALUE
   ('tokyo','Tokyo','Japan',35.6762,139.6503),
   ('seoul','Seoul','South Korea',37.5665,126.9780),
   ('sydney','Sydney','Australia',-33.8688,151.2093),
-  ('auckland','Auckland','New Zealand',-36.8509,174.7645);
+  ('auckland','Auckland','New Zealand',-36.8509,174.7645)
+ON CONFLICT(id) DO UPDATE SET city=excluded.city,country=excluded.country,
+  latitude=excluded.latitude,longitude=excluded.longitude;
 
-CREATE TABLE public.game_pigeon_races (
-  user_id uuid NOT NULL REFERENCES public.game_users(id) ON DELETE CASCADE,
-  request_id uuid NOT NULL,
-  pigeon_id uuid NOT NULL REFERENCES public.game_pigeons(id) ON DELETE CASCADE,
-  opponent_user_id uuid REFERENCES public.game_users(id) ON DELETE SET NULL,
-  opponent_pigeon_id uuid REFERENCES public.game_pigeons(id) ON DELETE SET NULL,
-  origin_id text NOT NULL REFERENCES public.game_race_locations(id),
-  destination_id text NOT NULL REFERENCES public.game_race_locations(id),
-  opponent_username text NOT NULL,
-  opponent_nickname text NOT NULL,
-  opponent_species text NOT NULL,
-  distance_km integer NOT NULL CHECK(distance_km>0),
-  duration_seconds integer NOT NULL CHECK(duration_seconds>=60),
-  entry_cost integer NOT NULL CHECK(entry_cost=100),
-  potential_coins integer NOT NULL CHECK(potential_coins>=0),
-  potential_xp integer NOT NULL CHECK(potential_xp>=0),
-  started_at timestamptz NOT NULL DEFAULT clock_timestamp() CHECK(isfinite(started_at)),
-  finishes_at timestamptz NOT NULL CHECK(isfinite(finishes_at)),
-  player_stats jsonb NOT NULL CHECK(jsonb_typeof(player_stats)='object'),
-  opponent_stats jsonb NOT NULL CHECK(jsonb_typeof(opponent_stats)='object'),
-  outcome jsonb NOT NULL CHECK(jsonb_typeof(outcome)='object'),
-  public_result jsonb NOT NULL CHECK(jsonb_typeof(public_result)='object'),
-  claimed_at timestamptz CHECK(claimed_at IS NULL OR isfinite(claimed_at)),
-  claimed_result jsonb CHECK(claimed_result IS NULL OR jsonb_typeof(claimed_result)='object'),
-  PRIMARY KEY(user_id,request_id),
-  CHECK(origin_id<>destination_id),
-  CHECK(finishes_at>started_at)
-);
-CREATE UNIQUE INDEX game_pigeon_races_one_active ON public.game_pigeon_races(user_id) WHERE claimed_at IS NULL;
+ALTER TABLE public.game_users ADD COLUMN is_test_account boolean NOT NULL DEFAULT false;
+UPDATE public.game_users SET is_test_account=true,coins=1000000000
+  WHERE lower(username)='supertest';
 
-ALTER TABLE public.game_race_locations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.game_pigeon_races ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.game_race_locations,public.game_pigeon_races FROM PUBLIC,anon,authenticated;
-GRANT SELECT ON public.game_race_locations TO authenticated;
-GRANT SELECT,INSERT,UPDATE,DELETE ON public.game_race_locations,public.game_pigeon_races TO service_role;
-CREATE POLICY race_locations_read ON public.game_race_locations FOR SELECT TO authenticated USING(true);
-
-CREATE FUNCTION public.pigeon_race_stats(p_level integer) RETURNS jsonb
-LANGUAGE sql IMMUTABLE SECURITY INVOKER SET search_path='' AS $$
-  SELECT jsonb_build_object(
-    'level',greatest(1,p_level),
-    'speed',18+greatest(1,p_level)*3,
-    'endurance',20+greatest(1,p_level)*4,
-    'strength',16+greatest(1,p_level)*3,
-    'navigation',15+greatest(1,p_level)*2,
-    'focus',14+greatest(1,p_level)*2
-  );
-$$;
-
-CREATE FUNCTION public.pigeon_race_quote(p_origin text,p_destination text,p_opponent_level integer) RETURNS jsonb
-LANGUAGE plpgsql STABLE SECURITY INVOKER SET search_path='' AS $$
-DECLARE origin_row public.game_race_locations%ROWTYPE; destination_row public.game_race_locations%ROWTYPE;
-  distance integer; minutes integer; coins integer; xp integer;
+CREATE FUNCTION public.prepare_game_test_account(p_user_id uuid) RETURNS jsonb
+LANGUAGE plpgsql VOLATILE SECURITY INVOKER SET search_path='' AS $$
+DECLARE enabled boolean; current_period date; active_race jsonb; pigeon jsonb; wallet jsonb;
 BEGIN
-  SELECT * INTO origin_row FROM public.game_race_locations WHERE id=p_origin;
-  SELECT * INTO destination_row FROM public.game_race_locations WHERE id=p_destination;
-  IF origin_row.id IS NULL OR destination_row.id IS NULL OR p_origin=p_destination THEN
-    RETURN jsonb_build_object('error','LOCATION_INVALID');
-  END IF;
-  distance:=greatest(1,round(6371*2*asin(sqrt(
-    power(sin(radians((destination_row.latitude-origin_row.latitude)::double precision)/2),2)+
-    cos(radians(origin_row.latitude::double precision))*cos(radians(destination_row.latitude::double precision))*
-    power(sin(radians((destination_row.longitude-origin_row.longitude)::double precision)/2),2)
-  )))::integer);
-  minutes:=greatest(15,least(720,round(12+distance/16.0)::integer));
-  coins:=least(2000,120+ceil(distance/6.0)::integer+greatest(1,p_opponent_level)*6);
-  xp:=least(600,20+ceil(distance/30.0)::integer+greatest(1,p_opponent_level)*3);
-  RETURN jsonb_build_object('distanceKm',distance,'durationSeconds',minutes*60,
-    'entryCost',100,'potentialCoins',coins,'potentialXp',xp,
-    'origin',jsonb_build_object('id',origin_row.id,'city',origin_row.city,'country',origin_row.country),
-    'destination',jsonb_build_object('id',destination_row.id,'city',destination_row.city,'country',destination_row.country));
+  SELECT is_test_account OR lower(username)='supertest' INTO enabled
+    FROM public.game_users WHERE id=p_user_id FOR UPDATE;
+  IF NOT coalesce(enabled,false) THEN RETURN jsonb_build_object('testAccount',false); END IF;
+
+  UPDATE public.game_users SET is_test_account=true,coins=1000000000,coins_version=coins_version+1 WHERE id=p_user_id
+    RETURNING jsonb_build_object('coins',coins,'version',coins_version) INTO wallet;
+  UPDATE public.game_pigeons SET health=100,energy=100,last_fed_at=NULL,last_played_at=NULL,
+    last_cleaned_at=NULL,last_slept_at=NULL,last_battled_at=NULL,injured_until=NULL,
+    version=version+1 WHERE user_id=p_user_id;
+
+  -- Archive the current test-only limits while retaining receipts for coverage.
+  UPDATE public.game_pigeon_pack_receipts current_receipt SET period_start=(
+      SELECT coalesce(min(saved.period_start),current_receipt.period_start)-1
+      FROM public.game_pigeon_pack_receipts saved
+      WHERE saved.user_id=p_user_id AND saved.pack_type=current_receipt.pack_type)
+    WHERE current_receipt.user_id=p_user_id AND (
+      (current_receipt.pack_type='normal' AND current_receipt.period_start=timezone('UTC',clock_timestamp())::date)
+      OR (current_receipt.pack_type='big' AND current_receipt.period_start=date_trunc('week',timezone('UTC',clock_timestamp()))::date));
+
+  UPDATE public.game_daily_rewards current_reward SET reward_date=(
+      SELECT coalesce(min(saved.reward_date),current_reward.reward_date)-1
+      FROM public.game_daily_rewards saved WHERE saved.user_id=p_user_id)
+    WHERE current_reward.user_id=p_user_id
+      AND current_reward.reward_date=public.pigeon_utc_date(clock_timestamp());
+
+  UPDATE public.game_pigeon_races SET started_at=least(started_at,clock_timestamp()-interval '1 second'),
+      finishes_at=clock_timestamp(),public_result=public_result||jsonb_build_object('finishesAt',clock_timestamp(),'ready',true)
+    WHERE user_id=p_user_id AND claimed_at IS NULL;
+
+  SELECT to_jsonb(p)||jsonb_build_object('species',(SELECT to_jsonb(s) FROM public.game_species s WHERE s.id=p.species_id))
+    INTO pigeon FROM public.game_pigeons p WHERE p.user_id=p_user_id;
+  SELECT r.public_result||jsonb_build_object('ready',true,'retryAfter',0)
+    INTO active_race FROM public.game_pigeon_races r WHERE r.user_id=p_user_id AND r.claimed_at IS NULL
+    ORDER BY r.started_at DESC LIMIT 1;
+  RETURN jsonb_build_object('testAccount',true,'wallet',wallet,'pigeon',pigeon,'activeRace',active_race);
 END;
 $$;
 
-CREATE FUNCTION public.get_game_race_lobby(p_user_id uuid) RETURNS jsonb
-LANGUAGE plpgsql STABLE SECURITY INVOKER SET search_path='' AS $$
-DECLARE own public.game_pigeons%ROWTYPE; own_species public.game_species%ROWTYPE; opponents jsonb; locations jsonb;
-  active public.game_pigeon_races%ROWTYPE; previous public.game_pigeon_races%ROWTYPE; now_at timestamptz:=clock_timestamp();
-BEGIN
-  SELECT * INTO own FROM public.game_pigeons WHERE user_id=p_user_id;
-  IF NOT FOUND THEN RETURN jsonb_build_object('error','NO_PIGEON'); END IF;
-  SELECT * INTO own_species FROM public.game_species WHERE id=own.species_id;
-  SELECT coalesce(jsonb_agg(jsonb_build_object('id',picked.id,'username',picked.username,
-    'nickname',picked.nickname,'level',picked.level,'species',picked.species,'image',picked.image,
-    'stats',public.pigeon_race_stats(picked.level)) ORDER BY picked.sort_key),'[]'::jsonb) INTO opponents
-  FROM (SELECT p.id,u.username,p.nickname,p.level,s.name AS species,s.image,
-      md5(p.id::text||p_user_id::text||current_date::text) AS sort_key
-    FROM public.game_pigeons p JOIN public.game_users u ON u.id=p.user_id
-    JOIN public.game_species s ON s.id=p.species_id WHERE p.user_id<>p_user_id
-    ORDER BY sort_key LIMIT 3) picked;
-  SELECT coalesce(jsonb_agg(jsonb_build_object('id',id,'city',city,'country',country,
-    'latitude',latitude,'longitude',longitude) ORDER BY city),'[]'::jsonb) INTO locations
-    FROM public.game_race_locations;
-  SELECT * INTO active FROM public.game_pigeon_races WHERE user_id=p_user_id AND claimed_at IS NULL ORDER BY started_at DESC LIMIT 1;
-  SELECT * INTO previous FROM public.game_pigeon_races WHERE user_id=p_user_id AND claimed_at IS NOT NULL ORDER BY claimed_at DESC LIMIT 1;
-  RETURN jsonb_build_object('entryCost',100,'wallet',public.get_pigeon_wallet(p_user_id),
-    'pigeon',to_jsonb(own)||jsonb_build_object('species',to_jsonb(own_species),'raceStats',public.pigeon_race_stats(own.level)),
-    'locations',locations,'opponents',opponents,
-    'activeRace',CASE WHEN active.request_id IS NULL THEN NULL ELSE active.public_result||jsonb_build_object(
-      'ready',now_at>=active.finishes_at,'retryAfter',greatest(0,ceil(extract(epoch FROM (active.finishes_at-now_at))))) END,
-    'lastRace',CASE WHEN previous.request_id IS NULL THEN NULL ELSE previous.claimed_result END);
-END;
-$$;
-
-CREATE FUNCTION public.start_game_pigeon_race(p_user_id uuid,p_request_id uuid,p_origin text,p_destination text,p_opponent_pigeon_id uuid)
+CREATE OR REPLACE FUNCTION public.start_game_pigeon_race(p_user_id uuid,p_request_id uuid,p_origin text,p_destination text,p_opponent_pigeon_id uuid)
 RETURNS jsonb LANGUAGE plpgsql VOLATILE SECURITY INVOKER SET search_path='' AS $$
 DECLARE own public.game_pigeons%ROWTYPE; rival public.game_pigeons%ROWTYPE; own_species public.game_species%ROWTYPE;
   rival_species public.game_species%ROWTYPE; profile public.game_users%ROWTYPE; rival_username text;
@@ -205,7 +142,7 @@ BEGIN
 END;
 $$;
 
-CREATE FUNCTION public.collect_game_pigeon_race(p_user_id uuid,p_race_id uuid) RETURNS jsonb
+CREATE OR REPLACE FUNCTION public.collect_game_pigeon_race(p_user_id uuid,p_race_id uuid) RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY INVOKER SET search_path='' AS $$
 DECLARE race public.game_pigeon_races%ROWTYPE; saved public.game_pigeons%ROWTYPE; current_state public.game_pigeons%ROWTYPE;
   now_at timestamptz:=clock_timestamp(); won boolean; coin_gain integer; xp_gain integer; wallet jsonb; result jsonb;
@@ -235,11 +172,7 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.pigeon_race_stats(integer),public.pigeon_race_quote(text,text,integer),
-  public.get_game_race_lobby(uuid),public.start_game_pigeon_race(uuid,uuid,text,text,uuid),
-  public.collect_game_pigeon_race(uuid,uuid) FROM PUBLIC,anon,authenticated;
-GRANT EXECUTE ON FUNCTION public.pigeon_race_stats(integer),public.pigeon_race_quote(text,text,integer),
-  public.get_game_race_lobby(uuid),public.start_game_pigeon_race(uuid,uuid,text,text,uuid),
-  public.collect_game_pigeon_race(uuid,uuid) TO service_role;
+REVOKE ALL ON FUNCTION public.prepare_game_test_account(uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.prepare_game_test_account(uuid) TO service_role;
 NOTIFY pgrst,'reload schema';
 COMMIT;

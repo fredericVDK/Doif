@@ -32,6 +32,7 @@
     "test:adoption": "node --test test/adoption.test.js",
     "seed:game": "node scripts/seed-game.js",
     "seed:adoption": "node scripts/seed-adoption.js",
+    "provision:test-accounts": "node scripts/provision-test-accounts.js",
     "refresh:catalog": "node scripts/refresh-catalog.js",
     "test:coins": "node --test test/coins.test.js test/care-view.test.js",
     "test:discoveries": "node --test test/discoveries.test.js"

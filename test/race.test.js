@@ -7,7 +7,7 @@ const {PGlite}=require('@electric-sql/pglite');
 const {fixture}=require('../test-support/auth-fixture');
 
 const read=file=>fs.readFileSync(path.join(__dirname,'..',file),'utf8');
-const migrations=['001_tamagotchi.sql','../seeds/tamagotchi-starters.sql','002_adoption.sql','003_time_engine.sql','004_feed.sql','005_play.sql','006_clean.sql','007_sleep.sql','008_xp_levels.sql','009_growth_stages.sql','010_coins.sql','011_discoveries.sql','012_daily_reward.sql','013_inventory.sql','014_shop.sql','015_daily_quests.sql','016_achievements.sql','017_catch_the_crumbs.sql','018_inventory_feeding.sql','019_pigeon_battles.sql','020_automatic_battles.sql','021_battle_health.sql','022_level_scaled_battle_damage.sql','023_pigeon_packs.sql','024_pigeon_clinic.sql','025_more_quests_achievements.sql','026_more_permanent_achievements.sql','027_username_password_accounts.sql','028_account_admin.sql','029_progression_social.sql','030_five_action_daily_quests.sql','031_clinic_resets_battle_recovery.sql','032_pigeon_races.sql'];
+const migrations=['001_tamagotchi.sql','../seeds/tamagotchi-starters.sql','002_adoption.sql','003_time_engine.sql','004_feed.sql','005_play.sql','006_clean.sql','007_sleep.sql','008_xp_levels.sql','009_growth_stages.sql','010_coins.sql','011_discoveries.sql','012_daily_reward.sql','013_inventory.sql','014_shop.sql','015_daily_quests.sql','016_achievements.sql','017_catch_the_crumbs.sql','018_inventory_feeding.sql','019_pigeon_battles.sql','020_automatic_battles.sql','021_battle_health.sql','022_level_scaled_battle_damage.sql','023_pigeon_packs.sql','024_pigeon_clinic.sql','025_more_quests_achievements.sql','026_more_permanent_achievements.sql','027_username_password_accounts.sql','028_account_admin.sql','029_progression_social.sql','030_five_action_daily_quests.sql','031_clinic_resets_battle_recovery.sql','032_pigeon_races.sql','033_race_world_and_test_accounts.sql'];
 let db;
 before(async()=>{
   db=new PGlite();
@@ -40,11 +40,53 @@ const start=(f,lobby,extra={})=>f.request('/api/game/races/start',{body:{request
 test('race lobby shows level stats, world routes and exactly three real opponents',async t=>{
   const own=await account(t,'RacePilot',5); await field(t);
   const response=await own.request('/api/game/races'),lobby=await response.json();
-  assert.equal(response.status,200); assert.equal(lobby.locations.length,9); assert.equal(lobby.opponents.length,3);
+  assert.equal(response.status,200); assert.equal(lobby.locations.length,25); assert.equal(lobby.opponents.length,3);
   assert.equal(lobby.entryCost,100); assert.equal(lobby.pigeon.raceStats.level,5);
   assert.deepEqual(Object.keys(lobby.pigeon.raceStats).sort(),['endurance','focus','level','navigation','speed','strength']);
   assert.ok(lobby.pigeon.raceStats.endurance>lobby.opponents.find(value=>value.level===2).stats.endurance);
   assert.ok(lobby.opponents.every(value=>value.username!=='RacePilot'));
+});
+
+test('a weaker pigeon has an exact twenty-percent guaranteed upset path',async t=>{
+  const own=await account(t,'Underdog',1); await field(t);
+  const lobby=await(await own.request('/api/game/races')).json();
+  const opponent=lobby.opponents.reduce((strongest,value)=>value.level>strongest.level?value:strongest);
+  let requestId;
+  for(let attempt=0;attempt<100;attempt++){
+    const candidate=randomUUID();
+    const roll=(await db.query("SELECT mod(abs(hashtext($1::text||':upset')::bigint),100)::integer value",[candidate])).rows[0].value;
+    if(roll<20){requestId=candidate;break;}
+  }
+  assert.ok(requestId,'found deterministic 20% upset request');
+  const response=await own.request('/api/game/races/start',{body:{requestId,origin:'brussels',destination:'amsterdam',opponentPigeonId:opponent.id}});
+  assert.equal(response.status,200);
+  const outcome=(await db.query('SELECT outcome FROM public.game_pigeon_races WHERE user_id=$1',[own.user.id])).rows[0].outcome;
+  assert.equal(outcome.upset,true); assert.equal(outcome.won,true); assert.ok(outcome.upsetRoll<20);
+  await db.query("UPDATE public.game_pigeon_races SET started_at=started_at-interval '1 day',finishes_at=clock_timestamp()-interval '1 second' WHERE user_id=$1",[own.user.id]);
+  const result=await(await own.request('/api/game/races/collect',{body:{raceId:requestId}})).json();
+  assert.equal(result.won,true); assert.equal(result.upset,true);
+});
+
+test('supertest receives unlimited test coins and every cooldown resets after an action',async t=>{
+  const supertest=await account(t,'supertest',4,1); await field(t);
+  let response=await supertest.request('/api/game/battle',{body:{requestId:randomUUID()}}),first=await response.json();
+  assert.equal(response.status,200); assert.equal(first.testAccount,true); assert.equal(first.wallet.coins,1000000000);
+  assert.equal(Number(first.pigeon.energy),100); assert.equal(first.injuredUntil,null);
+  response=await supertest.request('/api/game/battle',{body:{requestId:randomUUID()}});
+  assert.equal(response.status,200,'battle is immediately reusable');
+  const saved=(await db.query('SELECT last_battled_at,injured_until,energy FROM public.game_pigeons WHERE user_id=$1',[supertest.user.id])).rows[0];
+  assert.equal(saved.last_battled_at,null); assert.equal(saved.injured_until,null); assert.equal(Number(saved.energy),100);
+
+  const lobby=await(await supertest.request('/api/game/races')).json();
+  const started=await(await start(supertest,lobby)).json();
+  assert.equal(started.testAccount,true); assert.equal(started.wallet.coins,1000000000);
+  response=await supertest.request('/api/game/races/collect',{body:{raceId:started.raceId}});
+  assert.equal(response.status,200,'race result is immediately available');
+
+  await db.query("INSERT INTO public.game_pigeon_pack_receipts(user_id,request_id,pack_type,period_start,result) VALUES($1,$2,'normal',timezone('UTC',clock_timestamp())::date,'{}')",[supertest.user.id,randomUUID()]);
+  await db.query('SELECT public.prepare_game_test_account($1)',[supertest.user.id]);
+  const packs=(await db.query('SELECT public.get_pigeon_pack_status($1) result',[supertest.user.id])).rows[0].result;
+  assert.equal(packs.packs.find(pack=>pack.id==='normal').available,true);
 });
 
 test('route length controls flight time and preview rewards',async t=>{
@@ -89,6 +131,7 @@ test('race page and endpoints are protected and validate server-owned choices',a
   for(const role of ['anon','authenticated']){
     await db.exec(`SET ROLE ${role}`);
     await assert.rejects(db.query('SELECT public.get_game_race_lobby($1)',[own.user.id]));
+    await assert.rejects(db.query('SELECT public.prepare_game_test_account($1)',[own.user.id]));
     await assert.rejects(db.query('SELECT * FROM public.game_pigeon_races'));
     await db.exec('RESET ROLE');
   }
