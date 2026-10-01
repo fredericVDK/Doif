@@ -149,3 +149,9 @@ test('race page and endpoints are protected and validate server-owned choices',a
     await db.exec('RESET ROLE');
   }
 });
+
+test('underdog results use a playful story instead of exposing the probability roll',()=>{
+  const script=read('public/pigeon-race.js');
+  assert.match(script,/spotted a french fry at the finish line and discovered turbo mode/);
+  assert.doesNotMatch(script,/weaker pigeon hit its 20% upset chance/i);
+});
