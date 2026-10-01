@@ -69,6 +69,26 @@
   const openingCards=openingDialog.querySelector('.pack-opening-cards');
   const openingActions=openingDialog.querySelector('.pack-opening-actions');
   const openingX=openingDialog.querySelector('.pack-opening-x');
+  const rarities=new Set(['common','uncommon','rare','epic','legendary']);
+
+  function rarityOf(item){
+    const rarity=String(item?.pigeon?.gameRarity||'common').toLowerCase();
+    return rarities.has(rarity)?rarity:'common';
+  }
+
+  function rarityLabel(rarity){
+    return rarity.charAt(0).toUpperCase()+rarity.slice(1);
+  }
+
+  function makeFirework(){
+    const firework=document.createElement('div');
+    firework.className='rarity-firework';firework.setAttribute('aria-hidden','true');
+    for(let spark=0;spark<12;spark++){
+      const particle=document.createElement('i');
+      particle.style.setProperty('--spark-index',spark);firework.append(particle);
+    }
+    return firework;
+  }
 
   function startOpening(type,trigger){
     lastTrigger=trigger;
@@ -85,19 +105,24 @@
   }
 
   function buildPigeonCard(item,index){
+    const rarity=rarityOf(item);
     const card=document.createElement('article');
-    card.className=`opening-pigeon-card ${item.isNew?'is-new':'is-duplicate'}`;
+    card.className=`opening-pigeon-card ${item.isNew?'is-new':'is-duplicate'} rarity-${rarity}`;
     card.style.setProperty('--card-index',index);
     const image=document.createElement('img');
     image.src=item.pigeon.image;
     image.alt='';
-    const badge=document.createElement('span');
+    const badges=document.createElement('div');badges.className='opening-card-badges';
+    const badge=document.createElement('span');badge.className='opening-status-badge';
     badge.textContent=item.isNew?'New':'Duplicate';
+    const rarityBadge=document.createElement('span');rarityBadge.className=`pack-rarity-badge rarity-${rarity}`;
+    rarityBadge.textContent=rarityLabel(rarity);badges.append(badge,rarityBadge);
     const name=document.createElement('strong');
     name.textContent=item.pigeon.name;
     const detail=document.createElement('small');
     detail.textContent=item.isNew?'Added to your PigeonDex':`+${Number(item.refund)} coins returned`;
-    card.append(image,badge,name,detail);
+    card.append(image,badges,name,detail);
+    if(rarity==='epic'||rarity==='legendary')card.append(makeFirework());
     return card;
   }
 
@@ -174,14 +199,17 @@
     const grid=document.createElement('div');
     grid.className='pack-reveal-grid';
     for(const item of data.pigeons){
+      const rarity=rarityOf(item);
       const card=document.createElement('article');
-      card.className=`pack-pigeon ${item.isNew?'pack-new':'pack-duplicate'}`;
+      card.className=`pack-pigeon ${item.isNew?'pack-new':'pack-duplicate'} rarity-${rarity}`;
       const image=document.createElement('img');
       image.src=item.pigeon.image;image.alt='';image.width=180;image.height=130;
-      const copy=document.createElement('div'),label=document.createElement('span'),name=document.createElement('strong'),detail=document.createElement('small');
+      const copy=document.createElement('div'),badges=document.createElement('div'),label=document.createElement('span'),rarityBadge=document.createElement('span'),name=document.createElement('strong'),detail=document.createElement('small');
+      badges.className='pack-result-badges';label.className='pack-status-badge';rarityBadge.className=`pack-rarity-badge rarity-${rarity}`;
       label.textContent=item.isNew?'New discovery':'Duplicate';name.textContent=item.pigeon.name;
+      rarityBadge.textContent=rarityLabel(rarity);badges.append(label,rarityBadge);
       detail.textContent=item.isNew?'Added to your PigeonDex':`+${Number(item.refund)} coins returned`;
-      copy.append(label,name,detail);card.append(image,copy);grid.append(card);
+      copy.append(badges,name,detail);card.append(image,copy);grid.append(card);
     }
     results.replaceChildren(heading,grid);results.hidden=false;
   }
