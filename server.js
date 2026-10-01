@@ -8,6 +8,7 @@ const { fetchBirdnetSpecies } = require("./lib/birdnet");
 const { createCatalog } = require("./lib/catalog");
 const { createAuthHandler } = require("./lib/auth/routes");
 const { GAME_API_DOCS } = require("./lib/game/api");
+const {createClient}=require('@supabase/supabase-js');
 
 function loadLocalEnvironment() {
   const envPath = path.join(__dirname, ".env");
@@ -46,6 +47,14 @@ const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID || "";
 const AIRTABLE_DRAWINGS_TABLE = process.env.AIRTABLE_DRAWINGS_TABLE || "Drawings";
 const AIRTABLE_DRAWINGS_IMAGE_FIELD = process.env.AIRTABLE_DRAWINGS_IMAGE_FIELD || "Image";
 const AIRTABLE_SCORES_TABLE = process.env.AIRTABLE_SCORES_TABLE || "Scores";
+let communityClient;
+function supabaseCommunity(){
+  if(communityClient!==undefined)return communityClient;
+  if(process.env.COMMUNITY_STORAGE!=='supabase'&&!process.env.VERCEL&&process.env.NODE_ENV!=='production')return communityClient=null;
+  const url=process.env.SUPABASE_URL,secret=process.env.SUPABASE_SECRET_KEY;
+  communityClient=url&&secret?createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}}):null;
+  return communityClient;
+}
 let activeDataFile = DATA_FILE;
 let appDb = loadDatabase();
 const rateLimitBuckets = new Map();
@@ -57,6 +66,10 @@ const allowedRootFiles = new Set([
   "analytics.js",
   "adoption.css",
   "pigeon-dashboard.css",
+  "pigeon-hub.css",
+  "pigeon-hub.js",
+  "pigeon-deck.css",
+  "pigeon-deck.js",
   "pigeon-feed.js",
   "pigeon-care.js",
   "pigeon-ui.js",
@@ -720,15 +733,10 @@ function airtableDrawingFromRecord(record) {
 }
 
 async function drawingEntries(limit = 60) {
-  if (!airtableConfigured()) return localDrawingEntries(limit);
-
-  const records = await listAirtableRecords(AIRTABLE_DRAWINGS_TABLE);
-  return records
-    .map(airtableDrawingFromRecord)
-    .filter((entry) => entry.imageDataUrl && (entry.status === "approved" || entry.status === "needs_review"))
-    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
-    .slice(0, limit)
-    .map(publicDrawing);
+  const client=supabaseCommunity();if(!client)return localDrawingEntries(limit);
+  const{data,error}=await client.from('community_drawings').select('*').in('status',['approved','needs_review']).order('created_at',{ascending:false}).limit(limit);
+  if(error)throw Object.assign(new Error('Supabase drawing storage failed.'),{statusCode:503,cause:error});
+  return data.map(row=>publicDrawing({id:row.id,artist:row.artist,title:row.title,imageDataUrl:row.image_data_url,status:row.status,aiFeedback:row.ai_feedback,createdAt:row.created_at}));
 }
 
 async function uploadAirtableDrawingImage(recordId, drawing, image) {
@@ -821,9 +829,9 @@ async function addDrawingSubmission(body, request) {
     ip: requestIp(request)
   };
 
-  if (airtableConfigured()) {
-    await writeAirtableDrawing(drawing, image);
-  } else {
+  const client=supabaseCommunity();
+  if(client){const{error}=await client.from('community_drawings').insert({id:drawing.id,artist:drawing.artist,title:drawing.title,image_data_url:drawing.imageDataUrl,image_bytes:drawing.imageBytes,image_mime_type:drawing.imageMimeType,status:drawing.status,ai:drawing.ai,ai_feedback:drawing.aiFeedback,created_at:drawing.createdAt});if(error)throw Object.assign(new Error('Supabase drawing storage failed.'),{statusCode:503,cause:error});}
+  else {
     appDb.drawings.unshift(drawing);
     appDb.drawings = appDb.drawings.slice(0, 120);
   }
@@ -880,10 +888,10 @@ function leaderboardFromScoreRecords(records, limit = 10) {
 }
 
 async function leaderboardEntries(limit = 10) {
-  if (!airtableConfigured()) return localLeaderboardEntries(limit);
-
-  const records = await listAirtableRecords(AIRTABLE_SCORES_TABLE);
-  return leaderboardFromScoreRecords(records, limit);
+  const client=supabaseCommunity();if(!client)return localLeaderboardEntries(limit);
+  const{data,error}=await client.from('community_scores').select('nickname,amount,created_at').order('created_at',{ascending:false}).limit(5000);
+  if(error)throw Object.assign(new Error('Supabase score storage failed.'),{statusCode:503,cause:error});
+  return leaderboardFromScoreRecords(data.map((row,index)=>({id:String(index),createdTime:row.created_at,fields:{Nickname:row.nickname,Amount:row.amount,CreatedAt:row.created_at}})),limit);
 }
 
 async function addLeaderboardScore(nickname, amount, session, request) {
@@ -897,23 +905,10 @@ async function addLeaderboardScore(nickname, amount, session, request) {
 
   let updated;
 
-  if (airtableConfigured()) {
-    await airtableRequest(AIRTABLE_SCORES_TABLE, {
-      method: "POST",
-      body: JSON.stringify({
-        records: [{
-          fields: {
-            SubmissionId: makeId("score"),
-            Nickname: nickname,
-            Amount: amount,
-            SessionId: storedSession.id,
-            CreatedAt: nowIso()
-          }
-        }],
-        typecast: true
-      })
-    });
-
+  const client=supabaseCommunity();
+  if (client) {
+    const{error}=await client.from('community_scores').insert({submission_id:makeId('score'),nickname,amount,session_id:storedSession.id,created_at:nowIso()});
+    if(error)throw Object.assign(new Error('Supabase score storage failed.'),{statusCode:503,cause:error});
     const allEntries = await leaderboardEntries(Number.MAX_SAFE_INTEGER);
     updated = allEntries.find((entry) => entry.nickname.toLowerCase() === nickname.toLowerCase());
   } else {
@@ -945,18 +940,7 @@ async function addLeaderboardScore(nickname, amount, session, request) {
 }
 
 async function deleteLeaderboardEntry(nickname) {
-  if (airtableConfigured()) {
-    const records = await listAirtableRecords(AIRTABLE_SCORES_TABLE);
-    const recordIds = records
-      .filter((record) => cleanNickname(record.fields?.Nickname).toLowerCase() === nickname.toLowerCase())
-      .map((record) => record.id);
-
-    for (const batch of chunks(recordIds, 10)) {
-      await airtableRequest(AIRTABLE_SCORES_TABLE, { method: "DELETE" }, { "records[]": batch });
-    }
-
-    return recordIds.length > 0;
-  }
+  const client=supabaseCommunity();if(client){const existing=await client.from('community_scores').select('id').ilike('nickname',nickname);if(existing.error)throw existing.error;if(!existing.data.length)return false;const removed=await client.from('community_scores').delete().in('id',existing.data.map(row=>row.id));if(removed.error)throw removed.error;return true;}
 
   refreshDatabaseFromStorage();
 
@@ -967,15 +951,7 @@ async function deleteLeaderboardEntry(nickname) {
 }
 
 async function resetLeaderboard() {
-  if (airtableConfigured()) {
-    const records = await listAirtableRecords(AIRTABLE_SCORES_TABLE);
-
-    for (const batch of chunks(records.map((record) => record.id), 10)) {
-      await airtableRequest(AIRTABLE_SCORES_TABLE, { method: "DELETE" }, { "records[]": batch });
-    }
-
-    return records.length;
-  }
+  const client=supabaseCommunity();if(client){const existing=await client.from('community_scores').select('id');if(existing.error)throw existing.error;if(existing.data.length){const removed=await client.from('community_scores').delete().in('id',existing.data.map(row=>row.id));if(removed.error)throw removed.error;}return existing.data.length;}
 
   refreshDatabaseFromStorage();
   const removed = appDb.leaderboard.length;
@@ -1021,7 +997,7 @@ function apiDocs() {
       "Rate-limited leaderboard submissions",
       "Community pigeon drawing uploads",
       "Server-side PigeonDex cache",
-      "Optional Airtable drawing and leaderboard storage",
+      "Supabase drawing and leaderboard storage",
       "BirdNET species metadata and attributed photos alongside domestic breeds",
       "Protected admin moderation"
     ],
@@ -1228,7 +1204,7 @@ function handleRequest(request, response) {
       drawingEntries(60)
         .then((drawings) => sendJson(response, 200, {
           drawings,
-          airtableConfigured: airtableConfigured()
+          supabaseConfigured: Boolean(supabaseCommunity())
         }, {
           "cache-control": "no-store"
         }))
@@ -1319,7 +1295,7 @@ function handleRequest(request, response) {
     leaderboardEntries(100)
       .then((leaderboard) => sendJson(response, 200, {
         leaderboard,
-        storage: airtableConfigured() ? `Airtable: ${AIRTABLE_SCORES_TABLE}` : activeDataFile
+        storage: supabaseCommunity() ? 'Supabase: community_scores' : activeDataFile
       }, {
         "cache-control": "no-store"
       }))

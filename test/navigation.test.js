@@ -7,7 +7,7 @@ const {renderAuthPage}=require('../lib/auth/pages');
 const {renderInventoryPage,renderShopPage}=require('../lib/game/pages');
 const read=file=>fs.readFileSync(path.join(__dirname,'..',file),'utf8');
 const core=[
-  ['home','/','Home'],['my-pigeon','/my-pigeon','My Pigeon'],['race','/race','Race'],['pigeondex','/pigeondex.html','PigeonDex'],
+  ['home','/','Home'],['my-pigeon','/my-pigeon','My Pigeon'],['deck','/deck','Deck'],['race','/race','Race'],['pigeondex','/pigeondex.html','PigeonDex'],
   ['shop','/shop','Shop'],['inventory','/inventory','Inventory'],['profile','/profile','Profile']
 ];
 function nav(html) {const match=html.match(/<nav class="[^"]*global-nav[^"]*"[^>]*>([\s\S]*?)<\/nav>/);assert.ok(match,'global navigation exists');return match[0];}
@@ -16,7 +16,7 @@ function anchors(html) {return [...html.matchAll(/<a href="([^"]+)"([^>]*)>([^<]
 test('central navigation defines the requested destinations in one stable order',()=>{
   assert.deepEqual(LINKS,core);
   assert.deepEqual(TAMAGOTCHI_LINKS.map(([,href,label])=>[href,label]),[
-    ['/my-pigeon','My Pigeon'],['/race','Race'],['/shop','Shop'],['/inventory','Inventory'],['/profile','Profile']
+    ['/my-pigeon','My Pigeon'],['/deck','Deck'],['/race','Race'],['/shop','Shop'],['/inventory','Inventory'],['/profile','Profile']
   ]);
   const basic=anchors(renderNavigation('home'));
   assert.deepEqual(basic.map(({href,label})=>[href,label]),[
@@ -83,7 +83,7 @@ test('public navigation upgrades after a verified account session',()=>{
 });
 
 test('all navigation targets resolve to existing public files or owned application routes',()=>{
-  const routeTargets=new Set(['/','/my-pigeon','/race','/profile','/shop','/inventory']);
+  const routeTargets=new Set(['/','/my-pigeon','/deck','/race','/profile','/shop','/inventory']);
   for(const [,href] of [...core,...PUBLIC_LINKS]) {
     if(routeTargets.has(href)) continue;
     assert.equal(fs.existsSync(path.join(__dirname,'..','public',href.slice(1))),true,href);

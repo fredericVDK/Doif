@@ -26,9 +26,9 @@
     busy = true; countdown(); button.setAttribute("aria-busy", "true"); recovery.hidden = true;
     message("Spending a little time together…");
     try {
-      const response = await fetch("/api/game/play", {
+      const response = await fetch("/api/game/team/care", {
         method: "POST", credentials: "same-origin", headers: {"content-type":"application/json"},
-        body: JSON.stringify({requestId:pending}), signal: AbortSignal.timeout(25000)
+        body: JSON.stringify({pigeonId:window.PigeonHub?.selectedPigeonId()||document.querySelector('[data-pigeon-id]').dataset.pigeonId,action:'play',requestId:pending}), signal: AbortSignal.timeout(25000)
       });
       const result = await response.json();
       if (!response.ok) {

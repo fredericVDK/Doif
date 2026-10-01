@@ -6,7 +6,7 @@ const {randomUUID}=require('node:crypto');
 const {GAME_API_DOCS,GAME_API_METHODS,dispatchGameApi}=require('../lib/game/api');
 
 test('game API registry is the single complete method and documentation contract',()=>{
-  assert.equal(GAME_API_DOCS.length,31);
+  assert.equal(GAME_API_DOCS.length,41);
   assert.equal(new Set(GAME_API_DOCS.map(item=>item.path)).size,GAME_API_DOCS.length);
   for(const item of GAME_API_DOCS) {
     assert.equal(GAME_API_METHODS.get(item.path),item.method);
@@ -20,6 +20,7 @@ test('game API registry is the single complete method and documentation contract
     ['GET','/api/game/pigeondex'],['POST','/api/game/daily-reward'],['POST','/api/game/battle'],
     ['GET','/api/game/packs'],['POST','/api/game/packs/buy'],['POST','/api/game/clinic'],
     ['GET','/api/game/battle/stats'],['POST','/api/game/discoveries/favorite'],['POST','/api/game/profile/privacy'],
+    ['GET','/api/game/deck'],['GET','/api/game/hub'],['POST','/api/game/team/care'],['POST','/api/game/team/train'],
     ['GET','/api/game/races'],['POST','/api/game/races/start'],['POST','/api/game/races/collect']
   ];
   for(const [method,route] of required) assert.equal(GAME_API_METHODS.get(route),method,route);

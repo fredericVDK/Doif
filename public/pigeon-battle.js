@@ -21,7 +21,7 @@
     if(busy)return;pending||=crypto.randomUUID();try{sessionStorage.setItem(key,pending);}catch{}
     busy=true;button.disabled=true;button.textContent='Battling…';result.hidden=false;result.dataset.error='false';result.className='battle-result';result.textContent='The pigeons enter the arena…';card.classList.add('battle-running');
     try{
-      const response=await fetch('/api/game/battle',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({requestId:pending}),signal:AbortSignal.timeout(25000)});
+      const response=await fetch('/api/game/team/battle',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({pigeonId:window.PigeonHub?.selectedPigeonId()||document.querySelector('[data-pigeon-id]').dataset.pigeonId,requestId:pending}),signal:AbortSignal.timeout(25000)});
       const data=await response.json();
       if(!response.ok){if([400,401,403,409].includes(response.status))clearPending();if(data.code==='BATTLE_INJURED'){injuredUntil=Date.now()+(Number(data.retryAfter)||30)*1000;cooldownUntil=injuredUntil;startCountdown();}else if(response.status===429){cooldownUntil=Date.now()+(Number(data.retryAfter)||30)*1000;startCountdown();}throw new Error(data.error||'The battle could not be confirmed.');}
       window.PigeonCare?.update(data);window.PigeonUI?.update(data.pigeon);clearPending();updateStats(data.battleStats);

@@ -7,8 +7,14 @@
   const distanceEl=document.getElementById('raceDistance'),durationEl=document.getElementById('raceDuration');
   const rewardCoins=document.getElementById('raceRewardCoins'),rewardXp=document.getElementById('raceRewardXp'),netReward=document.getElementById('raceNetReward');
   const wallet=document.getElementById('raceCoins'),entryCost=Number(page.dataset.entryCost)||100;
+  const teamChoice=document.getElementById('raceTeamPigeon');
   const pendingKey='pigeon-race:request';let pending,busy=false,activeRace,countdownTimer,pollTimer,collecting=false,resultShown=false;
   try{pending=sessionStorage.getItem(pendingKey);}catch{}
+  teamChoice?.addEventListener('change',async()=>{
+    teamChoice.disabled=true;status.textContent='Preparing your chosen racer…';
+    try{const response=await fetch('/api/game/team/home',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({pigeonId:teamChoice.value})});if(!response.ok)throw new Error((await response.json()).error||'Could not choose this racer.');location.reload();}
+    catch(error){status.textContent=error.message;teamChoice.disabled=false;}
+  });
 
   const formatNumber=value=>Number(value).toLocaleString('en');
   const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,character=>({

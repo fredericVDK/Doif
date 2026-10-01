@@ -26,9 +26,9 @@
     busy = true; countdown(); button.setAttribute("aria-busy", "true"); recovery.hidden = true;
     message("Settling down for a little rest…");
     try {
-      const response = await fetch("/api/game/sleep", {
+      const response = await fetch("/api/game/team/care", {
         method: "POST", credentials: "same-origin", headers: {"content-type":"application/json"},
-        body: JSON.stringify({requestId:pending}), signal: AbortSignal.timeout(25000)
+        body: JSON.stringify({pigeonId:window.PigeonHub?.selectedPigeonId()||document.querySelector('[data-pigeon-id]').dataset.pigeonId,action:'sleep',requestId:pending}), signal: AbortSignal.timeout(25000)
       });
       const result = await response.json();
       if (!response.ok) {

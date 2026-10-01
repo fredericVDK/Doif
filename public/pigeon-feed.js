@@ -57,9 +57,9 @@
     recovery.hidden = true;
     message(`Sharing ${names[food]}…`);
     try {
-      const response = await fetch("/api/game/feed", {
+      const response = await fetch("/api/game/team/care", {
         method: "POST", credentials: "same-origin", headers: {"content-type":"application/json"},
-        body: JSON.stringify({food, requestId: pending.requestId}), signal: AbortSignal.timeout(25000)
+        body: JSON.stringify({pigeonId:window.PigeonHub?.selectedPigeonId()||document.querySelector('[data-pigeon-id]').dataset.pigeonId,action:'feed',food,requestId:pending.requestId}), signal: AbortSignal.timeout(25000)
       });
       const result = await response.json();
       if (!response.ok) {
