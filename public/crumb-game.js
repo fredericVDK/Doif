@@ -4,6 +4,7 @@
   const board=document.getElementById('crumbBoard'),canvas=document.getElementById('crumbCanvas'),context=canvas.getContext('2d');
   const overlay=document.getElementById('gameOverlay'),startButton=document.getElementById('startCrumbGame');
   const instructions=document.getElementById('gameInstructions'),timeEl=document.getElementById('gameTime'),scoreEl=document.getElementById('gameScore'),status=document.getElementById('gameStatus');
+  const teamChoice=document.getElementById('crumbTeamPigeon');
   const requestKey=`crumb-game-request:${page.dataset.pigeonId}`,resultKey=`crumb-game-result:${page.dataset.pigeonId}`;
   let playing=false,birdX=50,direction=0,pointerTarget=null,lastFrame=0,startLocal=0,duration=30000,runId='',schedule=[],caught=[],frame;
   function message(text,error=false){status.textContent=text;status.dataset.error=String(error);}
@@ -15,6 +16,11 @@
     const response=await fetch(url,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(20000)});
     const data=await response.json(); if(!response.ok) throw new Error(data.error||'The game could not be saved.'); return data;
   }
+  teamChoice?.addEventListener('change',async()=>{
+    if(playing)return;teamChoice.disabled=true;message('Preparing your chosen pigeon…');
+    try{await request('/api/game/team/home',{pigeonId:teamChoice.value});location.reload();}
+    catch(error){message(error.message,true);teamChoice.disabled=false;}
+  });
   function resetBoard(){birdX=50;scoreEl.textContent='0';timeEl.textContent='30';caught=[];draw(0);}
   function buildCrumbs(){for(const item of schedule)item.resolved=false;}
   function sizeCanvas(){const ratio=Math.min(2,devicePixelRatio||1),rect=canvas.getBoundingClientRect(),width=Math.max(1,Math.round(rect.width*ratio)),height=Math.max(1,Math.round(rect.height*ratio));if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height;}return {width,height,ratio};}

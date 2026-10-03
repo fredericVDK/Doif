@@ -2,6 +2,8 @@
 
 Apply `migrations/034_game_hub_deck_and_community.sql` in the Supabase SQL Editor after migration 033. The migration keeps every existing pigeon and makes it team slot 1.
 
+Then apply `migrations/035_active_pigeon_switch.sql`. It fixes active-pigeon switching for existing teams so the selected pigeon is used consistently on My Pigeon, Race and Catch the Crumbs.
+
 The authenticated game adds:
 
 - a three-pigeon Deck built from discovered pigeons;
