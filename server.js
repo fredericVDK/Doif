@@ -24,6 +24,7 @@ function loadLocalEnvironment() {
 }
 
 loadLocalEnvironment();
+const {renderBreedPage, renderPigeondexIndex, breedPaths, findBreedBySlug} = require("./lib/seo-pages");
 const handleAuth = createAuthHandler({getCatalog: () => getCatalog()});
 
 const PORT = process.env.PORT || 3000;
@@ -98,6 +99,8 @@ const allowedRootFiles = new Set([
   "catalog-ui.js",
   "catalog-ui.css",
   "index.html",
+  "index-nl.html",
+  "seo-pages.css",
   "google93e4be11c4e6ac1d.html",
   "styles.css",
   "script.js",
@@ -127,6 +130,7 @@ const mimeTypes = {
   ".css": "text/css; charset=utf-8",
   ".js": "application/javascript; charset=utf-8",
   ".png": "image/png",
+  ".webp": "image/webp",
   ".svg": "image/svg+xml; charset=utf-8",
   ".ico": "image/x-icon"
 };
@@ -1070,7 +1074,7 @@ function sendFile(response, filePath) {
   });
 }
 
-const PUBLIC_PAGES = ["/", "/pigeondex.html", "/pigder.html", "/drawings.html", "/api-docs.html"];
+const PUBLIC_PAGES = ["/", "/nl/", "/pigeondex/", "/pigeondex.html", "/pigder.html", "/drawings.html", "/api-docs.html"];
 
 function siteOrigin() {
   const configured = process.env.SITE_URL
@@ -1090,13 +1094,15 @@ function robotsTxt() {
   ].join("\n");
 }
 
-function sitemapXml() {
-  const urls = PUBLIC_PAGES.map((page) => `  <url><loc>${siteOrigin()}${page}</loc></url>`).join("\n");
+function sitemapXml(catalog) {
+  const pages = [...PUBLIC_PAGES, ...(catalog ? breedPaths(catalog) : [])];
+  const urls = pages.map((page) => `  <url><loc>${siteOrigin()}${page}</loc></url>`).join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
 }
 
 function getStaticFilePath(pathname) {
-  const requestedPath = pathname === "/" ? "/index.html" : pathname;
+  const requestedPath = pathname === "/" ? "/index.html"
+    : (pathname === "/nl" || pathname === "/nl/") ? "/index-nl.html" : pathname;
   const decodedPath = decodeURIComponent(requestedPath);
   const trimmedPath = decodedPath.replace(/^\/+/, "");
   const normalizedPath = path.normalize(trimmedPath);
@@ -1133,11 +1139,47 @@ function handleRequest(request, response) {
       return;
     }
     const isRobots = url.pathname === "/robots.txt";
-    response.writeHead(200, {
-      "content-type": isRobots ? "text/plain; charset=utf-8" : "application/xml; charset=utf-8",
-      "cache-control": "public, max-age=3600"
-    });
-    response.end(request.method === "HEAD" ? undefined : (isRobots ? robotsTxt() : sitemapXml()));
+    const send = (body) => {
+      response.writeHead(200, {
+        "content-type": isRobots ? "text/plain; charset=utf-8" : "application/xml; charset=utf-8",
+        "cache-control": "public, max-age=3600"
+      });
+      response.end(request.method === "HEAD" ? undefined : body);
+    };
+    if (isRobots) send(robotsTxt());
+    else getCatalog().catch(() => null).then((catalog) => send(sitemapXml(catalog)));
+    return;
+  }
+
+  if (url.pathname === "/pigeondex") {
+    response.writeHead(301, { location: "/pigeondex/" });
+    response.end();
+    return;
+  }
+
+  if (url.pathname.startsWith("/pigeondex/")) {
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      methodNotAllowed(response);
+      return;
+    }
+    const slug = decodeURIComponent(url.pathname.slice("/pigeondex/".length)).replace(/\/+$/, "");
+    getCatalog()
+      .then((catalog) => {
+        const origin = siteOrigin();
+        const breed = slug ? findBreedBySlug(catalog, slug) : null;
+        if (slug && !breed) {
+          response.writeHead(404, { "content-type": "text/html; charset=utf-8" });
+          response.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>Pigeon not found · Doif</title><link rel="stylesheet" href="/seo-pages.css"></head><body><main class="seo-main"><h1>Pigeon not found</h1><p><a href="/pigeondex/">See all pigeon breeds and species</a></p></main></body></html>`);
+          return;
+        }
+        const html = breed ? renderBreedPage(breed, { catalog, origin }) : renderPigeondexIndex({ catalog, origin });
+        response.writeHead(200, {
+          "content-type": "text/html; charset=utf-8",
+          "cache-control": "public, max-age=0, s-maxage=86400, stale-while-revalidate=604800"
+        });
+        response.end(request.method === "HEAD" ? undefined : html);
+      })
+      .catch((error) => sendServiceError(response, error, "Could not load the PigeonDex.", 502));
     return;
   }
 

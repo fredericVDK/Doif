@@ -53,7 +53,7 @@ button {
   position: relative;
   min-height: 100vh;
   min-height: 100svh;
-  background: #d7d9d3 url("assets/pavement-floor.png") center top / cover;
+  background: #d7d9d3 url("assets/pavement-floor.webp") center top / cover;
 }
 
 .intro {
@@ -118,7 +118,7 @@ button {
   height: var(--photo-height);
   overflow: hidden;
   border-bottom: 1px solid var(--line);
-  background: var(--surface-2) url("assets/pavement-floor.png") center center / cover;
+  background: var(--surface-2) url("assets/pavement-floor.webp") center center / cover;
   box-shadow: none;
 }
 
@@ -665,4 +665,13 @@ body.has-fed .hint {
   .leaderboard-list {
     max-height: 70px;
   }
+}
+
+.intro p a {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.intro .about-line {
+  font-size: clamp(14px, 1.15vw, 17px);
 }

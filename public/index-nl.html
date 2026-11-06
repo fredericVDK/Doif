@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Doif is een gratis duivenspel. Voeder duiven, adopteer je eigen duif en ontdek honderden duivenrassen en duivensoorten in de PigeonDex.">
+    <title>Doif – Gratis Duivenspel: Voeder de Duiven · Pigeon Crumbs</title>
+    <link rel="canonical" href="https://doif-eta.vercel.app/nl/">
+    <link rel="alternate" hreflang="en" href="https://doif-eta.vercel.app/">
+    <link rel="alternate" hreflang="nl" href="https://doif-eta.vercel.app/nl/">
+    <link rel="alternate" hreflang="x-default" href="https://doif-eta.vercel.app/">
+    <link rel="icon" type="image/png" href="/assets/favicon.png">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Doif">
+    <meta property="og:title" content="Doif – Gratis Duivenspel">
+    <meta property="og:description" content="Voeder duiven, adopteer je eigen duif en ontdek alle duivenrassen.">
+    <meta property="og:url" content="https://doif-eta.vercel.app/nl/">
+    <meta property="og:locale" content="nl_BE">
+    <meta property="og:image" content="https://doif-eta.vercel.app/assets/pigeon-hero-wide.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Doif","alternateName":["Duif","Pigeon Crumbs","Doif Duivenspel"],"url":"https://doif-eta.vercel.app/nl/","inLanguage":"nl","description":"Doif is een gratis duivenspel: voeder duiven, adopteer en verzorg je eigen duif en ontdek duivenrassen in de PigeonDex."}</script>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/site-navigation.css">
+    <script src="/analytics.js" defer></script>
+    <script src="/site-navigation.js" defer></script>
+    <script defer src="/_vercel/insights/script.js"></script>
+  </head>
+  <body>
+    <main class="stage" aria-label="Duiven voeder-speelveld">
+      <section class="intro" aria-label="Over duiven">
+        <nav class="site-nav global-nav" aria-label="Site navigation">
+        <a href="/">Home</a>
+        <a href="/pigeondex.html">PigeonDex</a>
+        <a href="/pigder.html">Pigder</a>
+        <a href="/drawings.html">Drawings</a>
+        <a href="/api-docs.html">API</a>
+        <a href="/sign-in" class="login-link">Login</a>
+      </nav>
+        <h1>Wees Lief voor de Vergeten Vogels</h1>
+        <p class="brand-line">Welkom bij <strong>Doif</strong>, genoemd naar de <strong>duif</strong>. <a href="/" hreflang="en" lang="en">English</a></p>
+        <p>
+          Duiven delen elke dag onze straten, maar de meeste mensen lopen
+          er zonder nadenken voorbij. Het zijn kleine stadsburen die leven van
+          kruimels en geduld. Klik ergens op het scherm om een kruimel te strooien en een duif te voederen.
+        </p>
+        <p class="about-line">
+          Doif is een gratis duivenspel: adopteer en verzorg je eigen duif, doe mee aan
+          duivenraces en gevechten, en ontdek honderden duivenrassen en wilde duivensoorten in de
+          <a href="/pigeondex/">PigeonDex</a>.
+        </p>
+      </section>
+
+      <section class="photo-strip" aria-label="Foto van een duif">
+        <img src="/assets/pigeon-hero-wide.webp" alt="Een grijze stadsduif op de stoep" width="1983" height="793" fetchpriority="high">
+        <button id="heroPigeon" class="pigeon-hotspot" type="button" aria-label="Geheime duivenknop"></button>
+      </section>
+
+      <section class="playfield" aria-label="Klikzone">
+        <p class="hint">Klik ergens</p>
+      </section>
+
+      <aside class="feed-board" aria-label="Klassement duiven voederen">
+        <div class="feed-counter">
+          <span>Gevoederd</span>
+          <strong id="feedCount">0</strong>
+        </div>
+        <form id="scoreForm" class="score-form">
+          <p>Klik ergens om duiven te voederen. Wil je stoppen? Vul je bijnaam in en verstuur je score.</p>
+          <label class="nickname-field">
+            <span>Bijnaam</span>
+            <input id="nicknameInput" type="text" maxlength="24" autocomplete="nickname" placeholder="Duivenvriend">
+          </label>
+          <button id="submitScore" type="submit">Score versturen</button>
+        </form>
+        <div>
+          <h2>Klassement</h2>
+          <ol id="leaderboardList" class="leaderboard-list">
+            <li>Laden...</li>
+          </ol>
+        </div>
+      </aside>
+
+      <div id="jumpScare" class="jump-scare" aria-hidden="true">
+        <img src="/assets/pigeon-jumpscare.webp" alt="" loading="lazy">
+      </div>
+    </main>
+
+    <script src="/script.js"></script>
+  </body>
+</html>
