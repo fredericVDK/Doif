@@ -98,6 +98,7 @@ const allowedRootFiles = new Set([
   "catalog-ui.js",
   "catalog-ui.css",
   "index.html",
+  "google93e4be11c4e6ac1d.html",
   "styles.css",
   "script.js",
   "leaderboard-admin.html",
@@ -1069,6 +1070,31 @@ function sendFile(response, filePath) {
   });
 }
 
+const PUBLIC_PAGES = ["/", "/pigeondex.html", "/pigder.html", "/drawings.html", "/api-docs.html"];
+
+function siteOrigin() {
+  const configured = process.env.SITE_URL
+    || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "");
+  return (configured || "https://doif-eta.vercel.app").replace(/\/+$/, "");
+}
+
+function robotsTxt() {
+  return [
+    "User-agent: *",
+    "Allow: /",
+    "Disallow: /api/",
+    "Disallow: /leaderboard-admin.html",
+    "",
+    `Sitemap: ${siteOrigin()}/sitemap.xml`,
+    ""
+  ].join("\n");
+}
+
+function sitemapXml() {
+  const urls = PUBLIC_PAGES.map((page) => `  <url><loc>${siteOrigin()}${page}</loc></url>`).join("\n");
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
+}
+
 function getStaticFilePath(pathname) {
   const requestedPath = pathname === "/" ? "/index.html" : pathname;
   const decodedPath = decodeURIComponent(requestedPath);
@@ -1100,6 +1126,20 @@ function handleRequest(request, response) {
   publicSecurityHeaders(response);
   if (handleAuth(request, response)) return;
   const url = new URL(request.url, "http://local.invalid");
+
+  if (url.pathname === "/robots.txt" || url.pathname === "/sitemap.xml") {
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      methodNotAllowed(response);
+      return;
+    }
+    const isRobots = url.pathname === "/robots.txt";
+    response.writeHead(200, {
+      "content-type": isRobots ? "text/plain; charset=utf-8" : "application/xml; charset=utf-8",
+      "cache-control": "public, max-age=3600"
+    });
+    response.end(request.method === "HEAD" ? undefined : (isRobots ? robotsTxt() : sitemapXml()));
+    return;
+  }
 
   if (url.pathname === "/api/docs") {
     if (request.method !== "GET") {
@@ -1392,3 +1432,5 @@ module.exports.airtableDrawingFromRecord = airtableDrawingFromRecord;
 module.exports.requestIp = requestIp;
 module.exports.safeTokenEqual = safeTokenEqual;
 module.exports.publicSecurityHeaders = publicSecurityHeaders;
+module.exports.robotsTxt = robotsTxt;
+module.exports.sitemapXml = sitemapXml;
